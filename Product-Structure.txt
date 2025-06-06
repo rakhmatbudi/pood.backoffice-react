@@ -1,0 +1,25 @@
+src/
+├── hooks/
+│   ├── useAuth.js              # Authentication logic
+│   ├── useNavigation.js        # Navigation state
+│   ├── useCategories.js        # Category management
+│   └── useProducts.js          # Product management
+├── utils/
+│   ├── formatters.js           # Display formatting
+│   ├── constants.js            # App constants
+│   ├── validators.js           # Form validation
+│   └── helpers.js              # Utility functions
+├── components/
+│   ├── LoginScreen.js
+│   ├── DashboardLayout.js
+│   ├── Sidebar.js
+│   ├── pages/
+│   │   ├── DashboardPage.js
+│   │   ├── ProductsPage.js
+│   │   └── CategoriesPage.js
+│   └── modals/
+│       ├── ProductModal.js
+│       └── CategoryModal.js
+├── App.js
+├── index.js                        # React entry point
+└── index.css                       # Global styles with Tailwind
