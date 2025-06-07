@@ -33,7 +33,8 @@ const ProductsPage = () => {
     price: '',
     description: '',
     stock: '',
-    image: '',
+    image: null, // Changed from string to File object
+    imagePreview: '', // For showing preview
     isActive: true
   });
 
@@ -94,7 +95,8 @@ const ProductsPage = () => {
       price: '',
       description: '',
       stock: '',
-      image: '',
+      image: null,
+      imagePreview: '',
       isActive: true
     });
     setShowProductModal(true);
@@ -112,7 +114,8 @@ const ProductsPage = () => {
         price: product.price?.toString() || '0',
         description: product.description || '',
         stock: '50', // Default stock since API doesn't provide this
-        image: product.imagePath || '',
+        image: null, // Reset file input
+        imagePreview: product.imagePath || '', // Show current image
         isActive: product.isActive ?? true
       });
       setShowProductModal(true);
@@ -145,7 +148,7 @@ const ProductsPage = () => {
     }
   };
 
-  // Handle save product
+  // Handle save product with file upload using existing API
   const handleSaveProduct = async () => {
     if (!productForm.name || !productForm.price || !productForm.description) {
       alert('Please fill in all required fields');
@@ -153,20 +156,39 @@ const ProductsPage = () => {
     }
 
     try {
-      const productData = {
-        name: productForm.name,
-        description: productForm.description,
-        price: parseFloat(productForm.price),
-        categoryId: parseInt(productForm.category),
-        isActive: productForm.isActive,
-        imagePath: productForm.image || null,
-      };
-
       let result;
-      if (editingProduct) {
-        result = await productService.updateProduct(editingProduct.id, productData);
+      
+      // If there's a new image file, use FormData to send to your existing endpoints
+      if (productForm.image) {
+        const formData = productService.prepareFormData({
+          name: productForm.name,
+          description: productForm.description,
+          price: parseFloat(productForm.price),
+          categoryId: parseInt(productForm.category),
+          isActive: productForm.isActive,
+        }, productForm.image);
+        
+        if (editingProduct) {
+          result = await productService.updateProductWithImage(editingProduct.id, formData);
+        } else {
+          result = await productService.createProductWithImage(formData);
+        }
       } else {
-        result = await productService.createProduct(productData);
+        // No new image, use regular JSON data
+        const productData = {
+          name: productForm.name,
+          description: productForm.description,
+          price: parseFloat(productForm.price),
+          categoryId: parseInt(productForm.category),
+          isActive: productForm.isActive,
+          imagePath: productForm.imagePreview && !productForm.image ? productForm.imagePreview : null,
+        };
+
+        if (editingProduct) {
+          result = await productService.updateProduct(editingProduct.id, productData);
+        } else {
+          result = await productService.createProduct(productData);
+        }
       }
 
       if (result.success) {
@@ -180,6 +202,48 @@ const ProductsPage = () => {
       console.error('Error saving product:', err);
       alert('Error saving product. Please try again.');
     }
+  };
+
+  // Handle file selection
+  const handleImageChange = (file) => {
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please select a valid image file (JPEG, PNG, or WebP)');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+      if (file.size > maxSize) {
+        alert('Image file must be less than 5MB');
+        return;
+      }
+
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      
+      setProductForm(prev => ({
+        ...prev,
+        image: file,
+        imagePreview: previewUrl
+      }));
+    }
+  };
+
+  // Clear image selection
+  const handleClearImage = () => {
+    // Revoke the object URL to prevent memory leaks
+    if (productForm.imagePreview && productForm.imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(productForm.imagePreview);
+    }
+    
+    setProductForm(prev => ({
+      ...prev,
+      image: null,
+      imagePreview: ''
+    }));
   };
 
   // Filter and sort products
@@ -286,6 +350,15 @@ const ProductsPage = () => {
     fetchCategories();
     fetchStats();
   }, []);
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (productForm.imagePreview && productForm.imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(productForm.imagePreview);
+      }
+    };
+  }, [productForm.imagePreview]);
 
   const filteredProducts = getFilteredAndSortedProducts();
 
@@ -482,8 +555,6 @@ const ProductsPage = () => {
               <option value="created_at-desc">Newest First</option>
               <option value="created_at-asc">Oldest First</option>
             </select>
-
-            {/* View Mode Toggle - Removed since we only use table */}
           </div>
         </div>
 
@@ -760,6 +831,8 @@ const ProductsPage = () => {
           setShowModal={setShowProductModal}
           handleSaveProduct={handleSaveProduct}
           categories={categories}
+          onImageChange={handleImageChange}
+          onClearImage={handleClearImage}
         />
       )}
     </div>

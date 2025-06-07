@@ -6,23 +6,28 @@ class ProductService {
   // Get all products/menu items
   async getProducts(params = {}) {
     try {
+      console.log('🔍 Fetching products from:', ENDPOINTS.PRODUCTS.LIST);
       const response = await apiClient.get(ENDPOINTS.PRODUCTS.LIST, params);
       
+      console.log('🔍 Full API response:', response);
+      
+      // Your APIClient returns { success: true/false, data: {...}, status: number }
       if (response.success) {
-        // Handle the new API response structure
-        const apiData = response.data;
+        // The actual data might be in response.data.data or just response.data
+        const actualData = response.data?.data || response.data;
+        console.log('🔍 Actual data:', actualData);
         
         return {
           success: true,
-          data: apiData.data || [],
-          totalCount: apiData.data?.length || 0,
-          status: apiData.status,
+          data: actualData || [],
+          totalCount: Array.isArray(actualData) ? actualData.length : 0,
+          status: 'success',
         };
+      } else {
+        throw new Error(response.error || 'Failed to fetch products');
       }
-      
-      throw new Error(response.error);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('❌ Error fetching products:', error);
       return {
         success: false,
         error: error.message,
@@ -37,13 +42,14 @@ class ProductService {
       const response = await apiClient.get(ENDPOINTS.PRODUCTS.BY_ID(id));
       
       if (response.success) {
+        const actualData = response.data?.data || response.data;
         return {
           success: true,
-          data: response.data.data || null,
+          data: actualData || null,
         };
+      } else {
+        throw new Error(response.error || 'Failed to fetch product');
       }
-      
-      throw new Error(response.error);
     } catch (error) {
       console.error(`Error fetching product ${id}:`, error);
       return {
@@ -60,14 +66,15 @@ class ProductService {
       const response = await apiClient.get(ENDPOINTS.PRODUCTS.BY_CATEGORY(categoryId));
       
       if (response.success) {
+        const actualData = response.data?.data || response.data;
         return {
           success: true,
-          data: response.data.data || [],
-          totalCount: response.data.data?.length || 0,
+          data: actualData || [],
+          totalCount: Array.isArray(actualData) ? actualData.length : 0,
         };
+      } else {
+        throw new Error(response.error || 'Failed to fetch products');
       }
-      
-      throw new Error(response.error);
     } catch (error) {
       console.error(`Error fetching products for category ${categoryId}:`, error);
       return {
@@ -84,14 +91,15 @@ class ProductService {
       const response = await apiClient.get(ENDPOINTS.PRODUCTS.ACTIVE);
       
       if (response.success) {
+        const actualData = response.data?.data || response.data;
         return {
           success: true,
-          data: response.data.data || [],
-          totalCount: response.data.data?.length || 0,
+          data: actualData || [],
+          totalCount: Array.isArray(actualData) ? actualData.length : 0,
         };
+      } else {
+        throw new Error(response.error || 'Failed to fetch products');
       }
-      
-      throw new Error(response.error);
     } catch (error) {
       console.error('Error fetching active products:', error);
       return {
@@ -108,15 +116,16 @@ class ProductService {
       const response = await apiClient.get(ENDPOINTS.PRODUCTS.SEARCH(encodeURIComponent(searchTerm)));
       
       if (response.success) {
+        const actualData = response.data?.data || response.data;
         return {
           success: true,
-          data: response.data.data || [],
-          totalCount: response.data.data?.length || 0,
+          data: actualData || [],
+          totalCount: Array.isArray(actualData) ? actualData.length : 0,
           searchTerm,
         };
+      } else {
+        throw new Error(response.error || 'Failed to search products');
       }
-      
-      throw new Error(response.error);
     } catch (error) {
       console.error('Error searching products:', error);
       return {
@@ -127,7 +136,7 @@ class ProductService {
     }
   }
 
-  // Create new product
+  // Create new product (works with your existing endpoint)
   async createProduct(productData) {
     try {
       // Transform frontend data to API format
@@ -135,14 +144,15 @@ class ProductService {
       const response = await apiClient.post(ENDPOINTS.PRODUCTS.CREATE, apiProductData);
       
       if (response.success) {
+        const actualData = response.data?.data || response.data;
         return {
           success: true,
-          data: response.data.data || null,
+          data: actualData || null,
           message: 'Product created successfully',
         };
+      } else {
+        throw new Error(response.error || 'Failed to create product');
       }
-      
-      throw new Error(response.error);
     } catch (error) {
       console.error('Error creating product:', error);
       return {
@@ -153,7 +163,39 @@ class ProductService {
     }
   }
 
-  // Update product
+  // Create product with image using your existing endpoint
+  async createProductWithImage(formData) {
+    try {
+      // For FormData, we need to use a different approach with your APIClient
+      const response = await apiClient.request(ENDPOINTS.PRODUCTS.CREATE, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // Don't set Content-Type for FormData, let browser set it with boundary
+        },
+      });
+      
+      if (response.success) {
+        const actualData = response.data?.data || response.data;
+        return {
+          success: true,
+          data: actualData || null,
+          message: 'Product created successfully',
+        };
+      } else {
+        throw new Error(response.error || 'Failed to create product');
+      }
+    } catch (error) {
+      console.error('Error creating product with image:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: null,
+      };
+    }
+  }
+
+  // Update product (works with your existing endpoint)
   async updateProduct(id, productData) {
     try {
       // Transform frontend data to API format
@@ -161,16 +203,49 @@ class ProductService {
       const response = await apiClient.put(ENDPOINTS.PRODUCTS.UPDATE(id), apiProductData);
       
       if (response.success) {
+        const actualData = response.data?.data || response.data;
         return {
           success: true,
-          data: response.data.data || null,
+          data: actualData || null,
           message: 'Product updated successfully',
         };
+      } else {
+        throw new Error(response.error || 'Failed to update product');
       }
-      
-      throw new Error(response.error);
     } catch (error) {
       console.error(`Error updating product ${id}:`, error);
+      return {
+        success: false,
+        error: error.message,
+        data: null,
+      };
+    }
+  }
+
+  // Update product with image using your existing endpoint
+  async updateProductWithImage(id, formData) {
+    try {
+      // For FormData, we need to use a different approach with your APIClient
+      const response = await apiClient.request(ENDPOINTS.PRODUCTS.UPDATE(id), {
+        method: 'PUT',
+        body: formData,
+        headers: {
+          // Don't set Content-Type for FormData, let browser set it with boundary
+        },
+      });
+      
+      if (response.success) {
+        const actualData = response.data?.data || response.data;
+        return {
+          success: true,
+          data: actualData || null,
+          message: 'Product updated successfully',
+        };
+      } else {
+        throw new Error(response.error || 'Failed to update product');
+      }
+    } catch (error) {
+      console.error(`Error updating product ${id} with image:`, error);
       return {
         success: false,
         error: error.message,
@@ -189,9 +264,9 @@ class ProductService {
           success: true,
           message: 'Product deleted successfully',
         };
+      } else {
+        throw new Error(response.error || 'Failed to delete product');
       }
-      
-      throw new Error(response.error);
     } catch (error) {
       console.error(`Error deleting product ${id}:`, error);
       return {
@@ -201,8 +276,66 @@ class ProductService {
     }
   }
 
-  // Utility methods for product data processing
-  
+  // File upload utility methods
+
+  // Helper method to validate image file
+  validateImageFile(file) {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (!allowedTypes.includes(file.type)) {
+      return {
+        valid: false,
+        error: 'Please select a valid image file (JPEG, PNG, or WebP)'
+      };
+    }
+
+    if (file.size > maxSize) {
+      return {
+        valid: false,
+        error: 'Image file must be less than 5MB'
+      };
+    }
+
+    return { valid: true };
+  }
+
+  // Helper method to create image preview URL
+  createImagePreview(file) {
+    return URL.createObjectURL(file);
+  }
+
+  // Helper method to revoke image preview URL (call this to prevent memory leaks)
+  revokeImagePreview(url) {
+    if (url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  // Prepare form data for file upload - works with your existing API
+  prepareFormData(productData, imageFile = null) {
+    const formData = new FormData();
+    
+    // Add fields in the format your API expects
+    formData.append('name', productData.name);
+    formData.append('description', productData.description);
+    formData.append('price', productData.price.toString());
+    formData.append('category_id', productData.categoryId.toString());
+    formData.append('is_active', productData.isActive.toString());
+    
+    // Add image file if provided
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+    
+    return formData;
+  }
+
+  // Get formatted image URL (your images are already full Cloudinary URLs)
+  getImageUrl(imagePath) {
+    return imagePath; // Your API returns full Cloudinary URLs
+  }
+
   // Transform API product data to frontend format
   transformProductData(apiProduct) {
     return {

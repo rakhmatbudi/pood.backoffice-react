@@ -1,136 +1,266 @@
 // src/components/modals/ProductModal.js
-import React from 'react';
+import React, { useRef } from 'react';
+import { X, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
 
-const ProductModal = ({ 
-  editingProduct, 
-  productForm, 
-  categories, 
-  setProductForm, 
-  setShowModal, 
-  handleSaveProduct 
+const ProductModal = ({
+  editingProduct,
+  productForm,
+  setProductForm,
+  setShowModal,
+  handleSaveProduct,
+  categories,
+  onImageChange,
+  onClearImage
 }) => {
+  const fileInputRef = useRef(null);
+
+  const handleInputChange = (field, value) => {
+    setProductForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      onImageChange(file);
+    }
+    // Reset the input value so the same file can be selected again if needed
+    event.target.value = '';
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    handleSaveProduct();
+  };
+
+  const handleModalClick = (e) => {
+    // Close modal when clicking outside the content
+    if (e.target === e.currentTarget) {
+      setShowModal(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-4 sm:p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      onClick={handleModalClick}
+    >
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b">
+          <h2 className="text-xl font-semibold text-gray-800">
             {editingProduct ? 'Edit Product' : 'Add New Product'}
-          </h3>
-          
-          <div className="space-y-3 sm:space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Product Name
-              </label>
-              <input
-                type="text"
-                value={productForm.name}
-                onChange={(e) => setProductForm({...productForm, name: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                required
-              />
-            </div>
+          </h2>
+          <button
+            onClick={() => setShowModal(false)}
+            className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category
-              </label>
-              <select
-                value={productForm.category}
-                onChange={(e) => setProductForm({...productForm, category: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-              >
-                {categories.filter(c => c.isActive).map(category => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
-                ))}
-              </select>
-            </div>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Product Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Product Name *
+            </label>
+            <input
+              type="text"
+              value={productForm.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Enter product name"
+              required
+            />
+          </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Price (IDR)
-                </label>
-                <input
-                  type="number"
-                  value={productForm.price}
-                  onChange={(e) => setProductForm({...productForm, price: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                  required
-                />
+          {/* Category */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Category *
+            </label>
+            <select
+              value={productForm.category}
+              onChange={(e) => handleInputChange('category', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              required
+            >
+              <option value="">Select a category</option>
+              {categories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Price */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Price (IDR) *
+            </label>
+            <input
+              type="number"
+              value={productForm.price}
+              onChange={(e) => handleInputChange('price', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Enter price"
+              min="0"
+              step="1000"
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description *
+            </label>
+            <textarea
+              value={productForm.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Enter product description"
+              rows={4}
+              required
+            />
+          </div>
+
+          {/* Stock */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Stock Quantity
+            </label>
+            <input
+              type="number"
+              value={productForm.stock}
+              onChange={(e) => handleInputChange('stock', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Enter stock quantity"
+              min="0"
+            />
+          </div>
+
+          {/* Image Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Product Image
+            </label>
+            
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileChange}
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              className="hidden"
+            />
+
+            {/* Image preview or upload area */}
+            {productForm.imagePreview ? (
+              <div className="relative">
+                <div className="border-2 border-gray-300 border-dashed rounded-lg p-4">
+                  <div className="relative">
+                    <img
+                      src={productForm.imagePreview}
+                      alt="Product preview"
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
+                      <div className="opacity-0 hover:opacity-100 transition-opacity duration-200">
+                        <button
+                          type="button"
+                          onClick={handleFileSelect}
+                          className="bg-white text-gray-700 px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors mr-2"
+                        >
+                          <Upload className="w-4 h-4 inline mr-2" />
+                          Change
+                        </button>
+                        <button
+                          type="button"
+                          onClick={onClearImage}
+                          className="bg-red-600 text-white px-3 py-2 rounded-lg shadow-md hover:bg-red-700 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4 inline mr-2" />
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-center">
+                    <p className="text-sm text-gray-600">
+                      {productForm.image ? productForm.image.name : 'Current image'}
+                    </p>
+                    {productForm.image && (
+                      <p className="text-xs text-gray-500">
+                        Size: {(productForm.image.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Stock
-                </label>
-                <input
-                  type="number"
-                  value={productForm.stock}
-                  onChange={(e) => setProductForm({...productForm, stock: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                  required
-                />
+            ) : (
+              <div 
+                onClick={handleFileSelect}
+                className="border-2 border-gray-300 border-dashed rounded-lg p-8 text-center hover:border-orange-400 hover:bg-orange-50 transition-colors cursor-pointer"
+              >
+                <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-sm text-gray-600 mb-2">
+                  Click to upload product image
+                </p>
+                <p className="text-xs text-gray-500">
+                  JPEG, PNG, or WebP files up to 5MB
+                </p>
               </div>
-            </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
-                value={productForm.description}
-                onChange={(e) => setProductForm({...productForm, description: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                rows="3"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Image URL
-              </label>
-              <input
-                type="url"
-                value={productForm.image}
-                onChange={(e) => setProductForm({...productForm, image: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
-                placeholder="https://example.com/image.jpg"
-              />
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={productForm.isActive}
-                onChange={(e) => setProductForm({...productForm, isActive: e.target.checked})}
-                className="w-4 h-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
-              />
-              <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
-                Active (available for ordering)
-              </label>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveProduct}
-                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
-              >
-                {editingProduct ? 'Update' : 'Create'}
-              </button>
+            {/* Upload instructions */}
+            <div className="mt-2 text-xs text-gray-500">
+              <p>• Recommended size: 800x600 pixels or larger</p>
+              <p>• Supported formats: JPEG, PNG, WebP</p>
+              <p>• Maximum file size: 5MB</p>
             </div>
           </div>
-        </div>
+
+          {/* Active Status */}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="isActive"
+              checked={productForm.isActive}
+              onChange={(e) => handleInputChange('isActive', e.target.checked)}
+              className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+            />
+            <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
+              Product is active and visible to customers
+            </label>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex justify-end space-x-3 pt-6 border-t">
+            <button
+              type="button"
+              onClick={() => setShowModal(false)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              {editingProduct ? 'Update Product' : 'Create Product'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
