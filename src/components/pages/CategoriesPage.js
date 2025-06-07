@@ -1,5 +1,3 @@
-
-
 // src/components/pages/CategoriesPage.js
 import React from 'react';
 import { Plus, Edit2, Trash2, Tag } from 'lucide-react';
@@ -38,66 +36,108 @@ const CategoriesPage = ({
         </div>
       </div>
 
-      {/* Categories Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {categories.map((category) => {
-          const categoryProducts = products.filter(p => p.category === category.id).length;
-          const colors = getCategoryColorClasses(category.color);
+      {/* Categories Table */}
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Category</th>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Description</th>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Color</th>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Products</th>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Status</th>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {categories.map((category) => {
+                const categoryProducts = products.filter(p => p.category === category.id).length;
+                const colors = getCategoryColorClasses(category.color);
 
-          return (
-            <div key={category.id} className={`bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow ${colors.border}`}>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-start justify-between mb-3 sm:mb-4">
-                  <div className={`${colors.bg} p-3 rounded-lg`}>
-                    <Tag className={`w-6 h-6 ${colors.text}`} />
-                  </div>
-                  <div className="flex space-x-1 sm:space-x-2">
-                    <button
-                      onClick={() => handleEditCategory(category)}
-                      className="text-blue-600 hover:text-blue-800 p-1"
-                    >
-                      <Edit2 size={14} className="sm:hidden" />
-                      <Edit2 size={16} className="hidden sm:block" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCategory(category.id, products)}
-                      className="text-red-600 hover:text-red-800 p-1"
-                    >
-                      <Trash2 size={14} className="sm:hidden" />
-                      <Trash2 size={16} className="hidden sm:block" />
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="mb-3 sm:mb-4">
-                  <h3 className="font-semibold text-gray-800 mb-1 text-sm sm:text-base">{category.name}</h3>
-                  <p className="text-xs sm:text-sm text-gray-600 mb-2">{category.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">
-                      {categoryProducts} product{categoryProducts !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between pt-3 sm:pt-4 border-t">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
-                    {category.color}
-                  </span>
-                  <button
-                    onClick={() => toggleCategoryStatus(category.id)}
-                    className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                      category.isActive
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                    }`}
-                  >
-                    {category.isActive ? 'Active' : 'Inactive'}
-                  </button>
-                </div>
-              </div>
+                return (
+                  <tr key={category.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-4 px-4 sm:px-6">
+                      <div className="flex items-center">
+                        <div className={`${colors.bg} p-2 rounded-lg mr-3`}>
+                          <Tag className={`w-4 h-4 ${colors.text}`} />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-800 text-sm sm:text-base">
+                            {category.name}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 sm:px-6">
+                      <p className="text-xs sm:text-sm text-gray-600 max-w-xs truncate">
+                        {category.description}
+                      </p>
+                    </td>
+                    <td className="py-4 px-4 sm:px-6">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
+                        {category.color}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 sm:px-6">
+                      <span className="text-sm text-gray-600">
+                        {categoryProducts} product{categoryProducts !== 1 ? 's' : ''}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 sm:px-6">
+                      <button
+                        onClick={() => toggleCategoryStatus(category.id)}
+                        className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                          category.isActive
+                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                        }`}
+                      >
+                        {category.isActive ? 'Active' : 'Inactive'}
+                      </button>
+                    </td>
+                    <td className="py-4 px-4 sm:px-6">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditCategory(category)}
+                          className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded transition-colors"
+                          title="Edit category"
+                        >
+                          <Edit2 size={14} className="sm:hidden" />
+                          <Edit2 size={16} className="hidden sm:block" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCategory(category.id, products)}
+                          className="text-red-600 hover:text-red-800 p-1 hover:bg-red-50 rounded transition-colors"
+                          title="Delete category"
+                        >
+                          <Trash2 size={14} className="sm:hidden" />
+                          <Trash2 size={16} className="hidden sm:block" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          
+          {/* Empty state */}
+          {categories.length === 0 && (
+            <div className="text-center py-12">
+              <Tag className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No categories yet</h3>
+              <p className="text-gray-500 mb-4">Get started by creating your first category</p>
+              <button
+                onClick={handleAddCategory}
+                className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors inline-flex items-center"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Category
+              </button>
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
 
       {/* Category Modal */}
