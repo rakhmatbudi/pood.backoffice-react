@@ -1,6 +1,6 @@
 // src/components/pages/CategoriesPage.js
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Tag, RefreshCw, AlertCircle, Eye, EyeOff, Search, BarChart3 } from 'lucide-react';
+import { Plus, Edit2, Tag, RefreshCw, AlertCircle, Eye, EyeOff, Search, BarChart3, ChevronUp, ChevronDown } from 'lucide-react';
 import CategoryModal from '../modals/CategoryModal';
 import categoryService from '../../services/categoryService';
 
@@ -23,6 +23,8 @@ const CategoriesPage = ({
   const [filterType, setFilterType] = useState('all');
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState(null);
+  const [sortBy, setSortBy] = useState('id');
+  const [sortOrder, setSortOrder] = useState('asc');
 
   // Fetch categories using the centralized service
   const fetchCategories = async () => {
@@ -59,34 +61,6 @@ const CategoriesPage = ({
     }
   };
 
-  // Handle category deletion with service
-  const handleDeleteCategoryWithService = async (categoryId) => {
-    if (!window.confirm('Are you sure you want to delete this category?')) {
-      return;
-    }
-
-    try {
-      const result = await categoryService.deleteCategory(categoryId);
-      
-      if (result.success) {
-        // Remove from local state
-        setCategories(prev => prev.filter(cat => cat.id !== categoryId));
-        setTotalCount(prev => prev - 1);
-        
-        // Refresh stats
-        fetchStats();
-        
-        // Show success message (you might want to implement a toast system)
-        console.log('Category deleted successfully');
-      } else {
-        setError(result.error);
-      }
-    } catch (err) {
-      setError(err.message);
-      console.error('Error deleting category:', err);
-    }
-  };
-
   // Handle search
   const handleSearch = async (term) => {
     setSearchTerm(term);
@@ -105,12 +79,53 @@ const CategoriesPage = ({
     }
   };
 
-  // Filter categories by type
-  const getFilteredCategories = () => {
-    if (filterType === 'all') {
-      return categories;
+  // Handle sorting
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
     }
-    return categories.filter(cat => cat.type === filterType);
+  };
+
+  // Filter and sort categories
+  const getFilteredAndSortedCategories = () => {
+    let filteredCategories = [...categories];
+
+    // Apply type filter
+    if (filterType !== 'all') {
+      filteredCategories = filteredCategories.filter(cat => cat.type === filterType);
+    }
+
+    // Apply sorting
+    filteredCategories.sort((a, b) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+
+      // Handle different data types
+      if (sortBy === 'id') {
+        aValue = parseInt(aValue) || 0;
+        bValue = parseInt(bValue) || 0;
+      } else if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
+      } else if (sortBy === 'isActive') {
+        aValue = aValue ? 1 : 0;
+        bValue = bValue ? 1 : 0;
+      } else {
+        aValue = aValue?.toString().toLowerCase() || '';
+        bValue = bValue?.toString().toLowerCase() || '';
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    return filteredCategories;
   };
 
   // Get category color classes
@@ -142,12 +157,34 @@ const CategoriesPage = ({
     return typeMap[type] || typeMap.other;
   };
 
+  // Render sortable header
+  const renderSortableHeader = (field, label) => {
+    return (
+      <th 
+        className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm cursor-pointer hover:bg-gray-100 transition-colors select-none"
+        onClick={() => handleSort(field)}
+      >
+        <div className="flex items-center justify-between">
+          <span>{label}</span>
+          <div className="flex flex-col ml-1">
+            <ChevronUp 
+              className={`w-3 h-3 ${sortBy === field && sortOrder === 'asc' ? 'text-orange-600' : 'text-gray-400'}`} 
+            />
+            <ChevronDown 
+              className={`w-3 h-3 -mt-1 ${sortBy === field && sortOrder === 'desc' ? 'text-orange-600' : 'text-gray-400'}`} 
+            />
+          </div>
+        </div>
+      </th>
+    );
+  };
+
   useEffect(() => {
     fetchCategories();
     fetchStats();
   }, []);
 
-  const filteredCategories = getFilteredCategories();
+  const filteredCategories = getFilteredAndSortedCategories();
 
   if (loading) {
     return (
@@ -289,12 +326,12 @@ const CategoriesPage = ({
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">ID</th>
-                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Category</th>
-                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Description</th>
-                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Type</th>
-                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Status</th>
-                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Color</th>
+                {renderSortableHeader('id', 'ID')}
+                {renderSortableHeader('name', 'Category')}
+                {renderSortableHeader('description', 'Description')}
+                {renderSortableHeader('type', 'Type')}
+                {renderSortableHeader('isActive', 'Status')}
+                {renderSortableHeader('color', 'Color')}
                 <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Actions</th>
               </tr>
             </thead>
@@ -358,24 +395,14 @@ const CategoriesPage = ({
                       </span>
                     </td>
                     <td className="py-4 px-4 sm:px-6">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEditCategory(category)}
-                          className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded transition-colors"
-                          title="Edit category"
-                        >
-                          <Edit2 size={14} className="sm:hidden" />
-                          <Edit2 size={16} className="hidden sm:block" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCategoryWithService(category.id)}
-                          className="text-red-600 hover:text-red-800 p-1 hover:bg-red-50 rounded transition-colors"
-                          title="Delete category"
-                        >
-                          <Trash2 size={14} className="sm:hidden" />
-                          <Trash2 size={16} className="hidden sm:block" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleEditCategory(category)}
+                        className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded transition-colors"
+                        title="Edit category"
+                      >
+                        <Edit2 size={14} className="sm:hidden" />
+                        <Edit2 size={16} className="hidden sm:block" />
+                      </button>
                     </td>
                   </tr>
                 );
