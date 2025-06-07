@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Edit2, Trash2, Package, RefreshCw, AlertCircle, Eye, EyeOff, 
-  Search, BarChart3, Filter, Grid, List, Image, DollarSign, Tag,
+  Search, BarChart3, Filter, Image, DollarSign, Tag,
   ShoppingBag, Star, Clock, CheckCircle, XCircle
 } from 'lucide-react';
 import ProductModal from '../modals/ProductModal';
@@ -29,7 +29,7 @@ const ProductsPage = ({
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priceFilter, setPriceFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState('list'); // Always use table view
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState(null);
   const [sortBy, setSortBy] = useState('name'); // 'name', 'price', 'created_at'
@@ -407,21 +407,7 @@ const ProductsPage = ({
               <option value="created_at-asc">Oldest First</option>
             </select>
 
-            {/* View Mode Toggle */}
-            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`px-3 py-2 ${viewMode === 'grid' ? 'bg-orange-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-3 py-2 ${viewMode === 'list' ? 'bg-orange-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-            </div>
+            {/* View Mode Toggle - Removed since we only use table */}
           </div>
         </div>
 
@@ -468,200 +454,103 @@ const ProductsPage = ({
         )}
       </div>
 
-      {/* Products Display */}
+      {/* Products Table */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        {viewMode === 'grid' ? (
-          /* Grid View */
-          <div className="p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">ID</th>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Name</th>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Category</th>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Price</th>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Variants</th>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Status</th>
+                <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
               {filteredProducts.map((product) => (
-                <div key={product.id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                  {/* Product Image */}
-                  <div className="h-48 bg-gray-100 relative">
-                    {product.imagePath ? (
-                      <img
-                        src={`/images/${product.imagePath}`}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                      <Package className="w-12 h-12" />
+                <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="py-4 px-4 sm:px-6">
+                    <span className="text-sm font-mono text-gray-600">
+                      #{product.id}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4 sm:px-6">
+                    <div className="font-semibold text-gray-800 text-sm sm:text-base">
+                      {product.name}
                     </div>
-                    
-                    {/* Status Badge */}
-                    <div className="absolute top-2 right-2">
-                      {product.isActive ? (
-                        <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Active
-                        </div>
-                      ) : (
-                        <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
-                          <XCircle className="w-3 h-3 mr-1" />
-                          Inactive
+                    {product.updatedAt && (
+                      <div className="text-xs text-gray-500">
+                        Updated: {new Date(product.updatedAt).toLocaleDateString()}
+                      </div>
+                    )}
+                  </td>
+                  <td className="py-4 px-4 sm:px-6">
+                    {product.category ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
+                        <Tag className="w-3 h-3 mr-1" />
+                        {product.category.name}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">No category</span>
+                    )}
+                  </td>
+                  <td className="py-4 px-4 sm:px-6">
+                    <div>
+                      <span className="font-semibold text-orange-600 text-sm sm:text-base">
+                        {getPriceDisplay(product)}
+                      </span>
+                      {product.hasVariants && (
+                        <div className="text-xs text-gray-500">
+                          Base: {formatPrice(product.price)}
                         </div>
                       )}
                     </div>
-
-                    {/* Variants Badge */}
-                    {product.hasVariants && (
-                      <div className="absolute top-2 left-2">
-                        <div className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs">
-                          {product.variants.length} variants
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Product Info */}
-                  <div className="p-4">
-                    <div className="mb-2">
-                      <h3 className="font-semibold text-gray-800 truncate">{product.name}</h3>
-                      <p className="text-sm text-gray-600 line-clamp-2">{product.description}</p>
-                    </div>
-
-                    {/* Category */}
-                    {product.category && (
-                      <div className="mb-2">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
-                          <Tag className="w-3 h-3 mr-1" />
-                          {product.category.name}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Price */}
-                    <div className="mb-3">
-                      <span className="text-lg font-bold text-orange-600">
-                        {getPriceDisplay(product)}
-                      </span>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleEditProduct(product)}
-                        className="flex-1 bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm flex items-center justify-center"
-                      >
-                        <Edit2 className="w-4 h-4 mr-1" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProductWithService(product.id)}
-                        className="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 transition-colors text-sm flex items-center justify-center"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          /* List View */
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Product</th>
-                  <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Category</th>
-                  <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Price</th>
-                  <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Variants</th>
-                  <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Status</th>
-                  <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-4 sm:px-6">
-                      <div className="flex items-center">
-                        <div className="w-12 h-12 bg-gray-100 rounded-lg mr-3 flex items-center justify-center">
-                          {product.imagePath ? (
-                            <img
-                              src={`/images/${product.imagePath}`}
-                              alt={product.name}
-                              className="w-full h-full object-cover rounded-lg"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                              }}
-                            />
-                          ) : null}
-                          <Package className="w-6 h-6 text-gray-400" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-gray-800">{product.name}</div>
-                          <div className="text-sm text-gray-600 max-w-xs truncate">{product.description}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 sm:px-6">
-                      {product.category ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
-                          {product.category.name}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-sm">No category</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 sm:px-6">
-                      <span className="font-semibold text-orange-600">
-                        {getPriceDisplay(product)}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 sm:px-6">
-                      {product.hasVariants ? (
+                  </td>
+                  <td className="py-4 px-4 sm:px-6">
+                    {product.hasVariants ? (
+                      <div>
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                          {product.activeVariantsCount}/{product.variants.length} active
+                          {product.variants.length} total
                         </span>
-                      ) : (
-                        <span className="text-gray-400 text-sm">No variants</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 sm:px-6">
-                      {product.isActive ? (
-                        <div className="flex items-center text-green-600">
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          <span className="text-xs">Active</span>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {product.activeVariantsCount} active
                         </div>
-                      ) : (
-                        <div className="flex items-center text-red-500">
-                          <XCircle className="w-4 h-4 mr-1" />
-                          <span className="text-xs">Inactive</span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 sm:px-6">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEditProduct(product)}
-                          className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded transition-colors"
-                          title="Edit product"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProductWithService(product.id)}
-                          className="text-red-600 hover:text-red-800 p-1 hover:bg-red-50 rounded transition-colors"
-                          title="Delete product"
-                        >
-                          <Trash2 size={16} />
-                        </button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    ) : (
+                      <span className="text-gray-400 text-sm">No variants</span>
+                    )}
+                  </td>
+                  <td className="py-4 px-4 sm:px-6">
+                    {product.isActive ? (
+                      <div className="flex items-center text-green-600">
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        <span className="text-xs">Active</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center text-red-500">
+                        <XCircle className="w-4 h-4 mr-1" />
+                        <span className="text-xs">Inactive</span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="py-4 px-4 sm:px-6">
+                    <button
+                      onClick={() => handleEditProduct(product)}
+                      className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded transition-colors"
+                      title="Edit product"
+                    >
+                      <Edit2 size={14} className="sm:hidden" />
+                      <Edit2 size={16} className="hidden sm:block" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {/* Empty State */}
         {!loading && filteredProducts.length === 0 && (
