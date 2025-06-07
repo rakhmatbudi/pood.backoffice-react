@@ -1,0 +1,22 @@
+{
+  "restaurant": {
+    "name": "Serendipity",
+    "address": "Jalan Durian Barat III No 10, Jagakarsa",
+    "phone": "082-12345-8276",
+    "email": "info@cafeserendipity.id",
+    "website": "www.cafeserendipity.id",
+    "instagram": "cafeserendipityjagakarsa"
+  },
+  "business": {
+    "currency": "R",
+    "timezone": "Indonesia/Jakarta",
+    "taxRate": 0.10,
+    "serviceCharge": 0.02
+  },
+  "app": {
+    "theme": "default",
+    "language": "en",
+    "dateFormat": "MM/DD/YYYY",
+    "timeFormat": "12h"
+  }
+}

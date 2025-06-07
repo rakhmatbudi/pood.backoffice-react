@@ -3,7 +3,9 @@ src/
 │   ├── useAuth.js              # Authentication logic
 │   ├── useNavigation.js        # Navigation state
 │   ├── useCategories.js        # Category management
-│   └── useProducts.js          # Product management
+│   ├── useProducts.js          # Product management
+│   └── useSettings.js
+
 ├── utils/
 │   ├── formatters.js           # Display formatting
 │   ├── constants.js            # App constants
@@ -22,6 +24,7 @@ src/
 │       └── CategoryModal.js
 ├── config/
 │   └── api.js                 # API configuration and endpoints
+│   └── settings.json
 ├── services/
 │   ├── apiClient.js          # Generic HTTP client with retry logic
 │   ├── categoryService.js    # Category-specific API operations

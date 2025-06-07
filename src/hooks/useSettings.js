@@ -1,11 +1,11 @@
 // src/components/pages/DashboardPage.js
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Package, TrendingUp, Users, DollarSign } from 'lucide-react';
 import { formatPrice, getCategoryColorClasses } from '../../utils/formatters';
-import settings from '../../config/settings.json';
+import { useSettings } from '../../hooks/useSettings';
 
 const DashboardPage = ({ categories, products, setCurrentPage }) => {
-  const [restaurantSettings, setRestaurantSettings] = useState(settings.restaurant);
+  const { restaurant, loading, error } = useSettings();
 
   // Calculate dashboard stats
   const totalProducts = products.length;
@@ -13,11 +13,24 @@ const DashboardPage = ({ categories, products, setCurrentPage }) => {
   const totalStock = products.reduce((sum, p) => sum + p.stock, 0);
   const totalValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
 
+  // Handle loading and error states
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    console.error('Dashboard settings error:', error);
+  }
+
   return (
     <div>
       <div className="mb-8">
         <h3 className="text-2xl font-bold text-gray-800 mb-2">
-          {restaurantSettings.name} Dashboard
+          Welcome to {restaurant?.name || 'Restaurant'} Dashboard
         </h3>
         <p className="text-gray-600">Overview of your restaurant operations</p>
       </div>
