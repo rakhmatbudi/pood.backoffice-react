@@ -20,6 +20,17 @@ src/
 │   └── modals/
 │       ├── ProductModal.js
 │       └── CategoryModal.js
+├── config/
+│   └── api.js                 # API configuration and endpoints
+├── services/
+│   ├── apiClient.js          # Generic HTTP client with retry logic
+│   ├── categoryService.js    # Category-specific API operations
+│   └── index.js              # Centralized service exports
+├── components/pages/
+│    └── CategoriesPage.js     # Refactored component
 ├── App.js
 ├── index.js                        # React entry point
 └── index.css                       # Global styles with Tailwind
+
+
+
