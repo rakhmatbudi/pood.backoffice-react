@@ -6,14 +6,17 @@ class ProductService {
   // Get all products/menu items
   async getProducts(params = {}) {
     try {
-      const response = await apiClient.get(ENDPOINTS.MENU.LIST, params);
+      const response = await apiClient.get(ENDPOINTS.PRODUCTS.LIST, params);
       
       if (response.success) {
+        // Handle the new API response structure
+        const apiData = response.data;
+        
         return {
           success: true,
-          data: response.data.data || [],
-          totalCount: response.data.full_count || 0,
-          query: response.data.query,
+          data: apiData.data || [],
+          totalCount: apiData.data?.length || 0,
+          status: apiData.status,
         };
       }
       
@@ -54,13 +57,13 @@ class ProductService {
   // Get products by category
   async getProductsByCategory(categoryId) {
     try {
-      const response = await apiClient.get(ENDPOINTS.MENU.BY_CATEGORY(categoryId));
+      const response = await apiClient.get(ENDPOINTS.PRODUCTS.BY_CATEGORY(categoryId));
       
       if (response.success) {
         return {
           success: true,
           data: response.data.data || [],
-          totalCount: response.data.full_count || 0,
+          totalCount: response.data.data?.length || 0,
         };
       }
       
@@ -75,10 +78,61 @@ class ProductService {
     }
   }
 
+  // Get active products only
+  async getActiveProducts() {
+    try {
+      const response = await apiClient.get(ENDPOINTS.PRODUCTS.ACTIVE);
+      
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data.data || [],
+          totalCount: response.data.data?.length || 0,
+        };
+      }
+      
+      throw new Error(response.error);
+    } catch (error) {
+      console.error('Error fetching active products:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: [],
+      };
+    }
+  }
+
+  // Search products
+  async searchProducts(searchTerm) {
+    try {
+      const response = await apiClient.get(ENDPOINTS.PRODUCTS.SEARCH(encodeURIComponent(searchTerm)));
+      
+      if (response.success) {
+        return {
+          success: true,
+          data: response.data.data || [],
+          totalCount: response.data.data?.length || 0,
+          searchTerm,
+        };
+      }
+      
+      throw new Error(response.error);
+    } catch (error) {
+      console.error('Error searching products:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: [],
+      };
+    }
+  }
+
   // Create new product
   async createProduct(productData) {
     try {
-      const response = await apiClient.post(ENDPOINTS.PRODUCTS.CREATE, productData);
+      // Transform frontend data to API format
+      const apiProductData = this.transformToApiFormat(productData);
+      const response = await apiClient.post(ENDPOINTS.PRODUCTS.CREATE, apiProductData);
       
       if (response.success) {
         return {
@@ -102,7 +156,9 @@ class ProductService {
   // Update product
   async updateProduct(id, productData) {
     try {
-      const response = await apiClient.put(ENDPOINTS.PRODUCTS.UPDATE(id), productData);
+      // Transform frontend data to API format
+      const apiProductData = this.transformToApiFormat(productData);
+      const response = await apiClient.put(ENDPOINTS.PRODUCTS.UPDATE(id), apiProductData);
       
       if (response.success) {
         return {
@@ -150,42 +206,59 @@ class ProductService {
   // Transform API product data to frontend format
   transformProductData(apiProduct) {
     return {
-      id: apiProduct.item_id,
-      name: apiProduct.item_name,
-      shortName: apiProduct.short_name,
-      price: parseFloat(apiProduct.item_price) || 0,
-      category: apiProduct.item_category,
-      description: apiProduct.item_description || '',
-      shortDescription: apiProduct.short_description || '',
-      varian: apiProduct.varian,
-      grouping: apiProduct.grouping,
-      isActive: apiProduct.is_active === 'Y',
-      isDisplayInMenu: apiProduct.is_display_in_menu,
-      image: this.getProductImageUrl(apiProduct.item_photo1),
-      image2: this.getProductImageUrl(apiProduct.item_photo2),
-      stock: this.generateRandomStock(), // Since API doesn't provide stock
+      id: apiProduct.id,
+      name: apiProduct.name,
+      description: apiProduct.description || 'No description available',
+      price: parseFloat(apiProduct.price) || 0,
+      isActive: apiProduct.is_active,
+      imagePath: apiProduct.image_path,
+      createdAt: apiProduct.created_at,
+      updatedAt: apiProduct.updated_at,
+      
+      // Category information
+      category: apiProduct.category ? {
+        id: apiProduct.category.id,
+        name: apiProduct.category.name,
+        description: apiProduct.category.description,
+      } : null,
+      
+      // Variants information
+      variants: apiProduct.variants ? apiProduct.variants.map(variant => ({
+        id: variant.id,
+        name: variant.name,
+        price: parseFloat(variant.price) || 0,
+        isActive: variant.is_active,
+        createdAt: variant.created_at,
+        updatedAt: variant.updated_at,
+      })) : [],
+      
+      // Additional computed fields
+      hasVariants: apiProduct.variants && apiProduct.variants.length > 0,
+      activeVariantsCount: apiProduct.variants ? apiProduct.variants.filter(v => v.is_active).length : 0,
+      minPrice: apiProduct.variants && apiProduct.variants.length > 0 
+        ? Math.min(...apiProduct.variants.map(v => parseFloat(v.price) || 0))
+        : parseFloat(apiProduct.price) || 0,
+      maxPrice: apiProduct.variants && apiProduct.variants.length > 0 
+        ? Math.max(...apiProduct.variants.map(v => parseFloat(v.price) || 0))
+        : parseFloat(apiProduct.price) || 0,
+    };
+  }
+
+  // Transform frontend data to API format
+  transformToApiFormat(frontendData) {
+    return {
+      name: frontendData.name,
+      description: frontendData.description || null,
+      price: frontendData.price?.toString() || '0.00',
+      is_active: frontendData.isActive !== undefined ? frontendData.isActive : true,
+      image_path: frontendData.imagePath || null,
+      category_id: frontendData.categoryId || frontendData.category?.id || null,
     };
   }
 
   // Transform multiple products
   transformProductsData(apiProducts) {
     return apiProducts.map(product => this.transformProductData(product));
-  }
-
-  // Get product image URL (handle null/empty images)
-  getProductImageUrl(photoPath) {
-    if (!photoPath || photoPath === null || photoPath === '') {
-      return 'https://via.placeholder.com/200/f3f4f6/6b7280?text=No+Image';
-    }
-    
-    // Assume images are served from a CDN or static folder
-    const baseImageUrl = 'https://api.cafeserendipity.id/images/';
-    return `${baseImageUrl}${photoPath}`;
-  }
-
-  // Generate random stock (since API doesn't provide this)
-  generateRandomStock() {
-    return Math.floor(Math.random() * 50) + 1;
   }
 
   // Get products grouped by category
@@ -201,11 +274,25 @@ class ProductService {
       const groupedProducts = {};
 
       transformedProducts.forEach(product => {
-        const categoryId = product.category;
-        if (!groupedProducts[categoryId]) {
-          groupedProducts[categoryId] = [];
+        if (product.category) {
+          const categoryName = product.category.name;
+          if (!groupedProducts[categoryName]) {
+            groupedProducts[categoryName] = {
+              category: product.category,
+              products: [],
+            };
+          }
+          groupedProducts[categoryName].products.push(product);
+        } else {
+          // Handle products without category
+          if (!groupedProducts['Uncategorized']) {
+            groupedProducts['Uncategorized'] = {
+              category: { id: null, name: 'Uncategorized', description: null },
+              products: [],
+            };
+          }
+          groupedProducts['Uncategorized'].products.push(product);
         }
-        groupedProducts[categoryId].push(product);
       });
 
       return {
@@ -223,84 +310,153 @@ class ProductService {
     }
   }
 
-  // Search products by name or description
-  searchProducts(products, searchTerm) {
-    if (!searchTerm) return products;
-    
-    const term = searchTerm.toLowerCase();
-    return products.filter(product =>
-      product.name.toLowerCase().includes(term) ||
-      product.description.toLowerCase().includes(term) ||
-      product.shortName.toLowerCase().includes(term) ||
-      product.grouping.toLowerCase().includes(term)
-    );
-  }
-
-  // Filter products by category
-  filterProductsByCategory(products, categoryId) {
-    if (!categoryId) return products;
-    return products.filter(product => product.category === categoryId);
-  }
-
-  // Filter products by price range
-  filterProductsByPriceRange(products, minPrice, maxPrice) {
-    return products.filter(product => {
-      const price = product.price;
-      return (!minPrice || price >= minPrice) && (!maxPrice || price <= maxPrice);
-    });
-  }
-
-  // Sort products by various criteria
-  sortProducts(products, sortBy, sortDirection = 'asc') {
-    return [...products].sort((a, b) => {
-      let aValue = a[sortBy];
-      let bValue = b[sortBy];
-
-      // Handle different data types
-      if (typeof aValue === 'string') {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
+  // Get products filtered by various criteria
+  async getFilteredProducts(filters = {}) {
+    try {
+      const result = await this.getProducts();
+      
+      if (!result.success) {
+        return result;
       }
 
-      if (typeof aValue === 'boolean') {
-        aValue = aValue ? 1 : 0;
-        bValue = bValue ? 1 : 0;
+      let transformedProducts = this.transformProductsData(result.data);
+      
+      // Apply filters
+      if (filters.isActive !== undefined) {
+        transformedProducts = transformedProducts.filter(product => product.isActive === filters.isActive);
+      }
+      
+      if (filters.categoryId) {
+        transformedProducts = transformedProducts.filter(product => 
+          product.category && product.category.id === filters.categoryId
+        );
+      }
+      
+      if (filters.hasVariants !== undefined) {
+        transformedProducts = transformedProducts.filter(product => product.hasVariants === filters.hasVariants);
+      }
+      
+      if (filters.minPrice !== undefined) {
+        transformedProducts = transformedProducts.filter(product => product.price >= filters.minPrice);
+      }
+      
+      if (filters.maxPrice !== undefined) {
+        transformedProducts = transformedProducts.filter(product => product.price <= filters.maxPrice);
+      }
+      
+      if (filters.searchTerm) {
+        const searchTerm = filters.searchTerm.toLowerCase();
+        transformedProducts = transformedProducts.filter(product =>
+          product.name.toLowerCase().includes(searchTerm) ||
+          (product.description && product.description.toLowerCase().includes(searchTerm)) ||
+          (product.category && product.category.name.toLowerCase().includes(searchTerm))
+        );
       }
 
-      if (aValue < bValue) {
-        return sortDirection === 'asc' ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortDirection === 'asc' ? 1 : -1;
-      }
-      return 0;
-    });
+      return {
+        success: true,
+        data: transformedProducts,
+        totalCount: transformedProducts.length,
+        filters,
+      };
+    } catch (error) {
+      console.error('Error getting filtered products:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: [],
+      };
+    }
   }
 
   // Get product statistics
-  getProductStatistics(products) {
-    const totalProducts = products.length;
-    const activeProducts = products.filter(p => p.isActive).length;
-    const averagePrice = products.reduce((sum, p) => sum + p.price, 0) / totalProducts;
-    const priceRange = {
-      min: Math.min(...products.map(p => p.price)),
-      max: Math.max(...products.map(p => p.price)),
-    };
+  async getProductStats() {
+    try {
+      const result = await this.getProducts();
+      
+      if (!result.success) {
+        return result;
+      }
 
-    // Group by category
-    const categoryCount = {};
-    products.forEach(product => {
-      categoryCount[product.category] = (categoryCount[product.category] || 0) + 1;
-    });
+      const transformedProducts = this.transformProductsData(result.data);
+      
+      const stats = {
+        total: transformedProducts.length,
+        active: transformedProducts.filter(product => product.isActive).length,
+        inactive: transformedProducts.filter(product => !product.isActive).length,
+        withVariants: transformedProducts.filter(product => product.hasVariants).length,
+        withoutVariants: transformedProducts.filter(product => !product.hasVariants).length,
+        withImages: transformedProducts.filter(product => product.imagePath).length,
+        withoutImages: transformedProducts.filter(product => !product.imagePath).length,
+        byCategory: {},
+        priceRanges: {
+          under25k: transformedProducts.filter(p => p.price < 25000).length,
+          '25k-50k': transformedProducts.filter(p => p.price >= 25000 && p.price < 50000).length,
+          '50k-100k': transformedProducts.filter(p => p.price >= 50000 && p.price < 100000).length,
+          over100k: transformedProducts.filter(p => p.price >= 100000).length,
+        },
+        averagePrice: transformedProducts.length > 0 
+          ? transformedProducts.reduce((sum, p) => sum + p.price, 0) / transformedProducts.length 
+          : 0,
+        totalVariants: transformedProducts.reduce((sum, p) => sum + p.variants.length, 0),
+      };
 
-    return {
-      totalProducts,
-      activeProducts,
-      inactiveProducts: totalProducts - activeProducts,
-      averagePrice: Math.round(averagePrice),
-      priceRange,
-      categoryCount,
-    };
+      // Category breakdown
+      transformedProducts.forEach(product => {
+        if (product.category) {
+          const categoryName = product.category.name;
+          if (!stats.byCategory[categoryName]) {
+            stats.byCategory[categoryName] = 0;
+          }
+          stats.byCategory[categoryName]++;
+        }
+      });
+
+      return {
+        success: true,
+        data: stats,
+      };
+    } catch (error) {
+      console.error('Error getting product stats:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: null,
+      };
+    }
+  }
+
+  // Get featured/popular products (can be customized based on business logic)
+  async getFeaturedProducts(limit = 10) {
+    try {
+      const result = await this.getActiveProducts();
+      
+      if (!result.success) {
+        return result;
+      }
+
+      const transformedProducts = this.transformProductsData(result.data);
+      
+      // Simple logic: products with images and higher prices might be featured
+      // You can customize this logic based on your business needs
+      const featuredProducts = transformedProducts
+        .filter(product => product.imagePath && product.price > 0)
+        .sort((a, b) => b.price - a.price) // Sort by price descending
+        .slice(0, limit);
+
+      return {
+        success: true,
+        data: featuredProducts,
+        totalCount: featuredProducts.length,
+      };
+    } catch (error) {
+      console.error('Error getting featured products:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: [],
+      };
+    }
   }
 }
 

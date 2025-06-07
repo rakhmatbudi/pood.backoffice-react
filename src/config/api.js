@@ -1,6 +1,6 @@
 // src/config/api.js
 const API_CONFIG = {
-  BASE_URL: 'https://api.cafeserendipity.id',
+  BASE_URL: 'https://api.pood.lol',
   TIMEOUT: 10000, // 10 seconds
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000, // 1 second
@@ -9,28 +9,32 @@ const API_CONFIG = {
 const ENDPOINTS = {
   // Category endpoints
   CATEGORIES: {
-    LIST: '/category',
-    CREATE: '/category',
-    UPDATE: (id) => `/category/${id}`,
-    DELETE: (id) => `/category/${id}`,
-    BY_ID: (id) => `/category/${id}`,
+    LIST: '/menu-categories/',
+    CREATE: '/menu-categories/',
+    UPDATE: (id) => `/menu-categories/${id}/`,
+    DELETE: (id) => `/menu-categories/${id}/`,
+    BY_ID: (id) => `/menu-categories/${id}/`,
   },
   
-  // Product endpoints (for future use)
+  // Product/Menu endpoints
   PRODUCTS: {
-    LIST: '/products',
-    CREATE: '/products',
-    UPDATE: (id) => `/products/${id}`,
-    DELETE: (id) => `/products/${id}`,
-    BY_ID: (id) => `/products/${id}`,
-    BY_CATEGORY: (categoryId) => `/products/category/${categoryId}`,
+    LIST: '/menu-items/',
+    CREATE: '/menu-items/',
+    UPDATE: (id) => `/menu-items/${id}/`,
+    DELETE: (id) => `/menu-items/${id}/`,
+    BY_ID: (id) => `/menu-items/${id}/`,
+    BY_CATEGORY: (categoryId) => `/menu-items/?category=${categoryId}`,
+    SEARCH: (term) => `/menu-items/?search=${term}`,
+    ACTIVE: '/menu-items/?is_active=true',
   },
   
-  // Menu endpoints
-  MENU: {
-    LIST: '/menu',
-    FEATURED: '/menu/featured',
-    BY_CATEGORY: (categoryId) => `/menu/category/${categoryId}`,
+  // Variant endpoints (if needed separately)
+  VARIANTS: {
+    LIST: '/variants/',
+    CREATE: '/variants/',
+    UPDATE: (id) => `/variants/${id}/`,
+    DELETE: (id) => `/variants/${id}/`,
+    BY_PRODUCT: (productId) => `/variants/?product=${productId}`,
   },
   
   // Order endpoints (for future use)

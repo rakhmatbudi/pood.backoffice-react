@@ -9,11 +9,14 @@ class CategoryService {
       const response = await apiClient.get(ENDPOINTS.CATEGORIES.LIST, params);
       
       if (response.success) {
+        // Handle the new API response structure
+        const apiData = response.data;
+        
         return {
           success: true,
-          data: response.data.data || [],
-          totalCount: response.data.full_count || 0,
-          query: response.data.query,
+          data: apiData.data || [],
+          totalCount: apiData.count || 0,
+          status: apiData.status,
         };
       }
       
@@ -54,7 +57,9 @@ class CategoryService {
   // Create new category
   async createCategory(categoryData) {
     try {
-      const response = await apiClient.post(ENDPOINTS.CATEGORIES.CREATE, categoryData);
+      // Transform frontend data to API format
+      const apiCategoryData = this.transformToApiFormat(categoryData);
+      const response = await apiClient.post(ENDPOINTS.CATEGORIES.CREATE, apiCategoryData);
       
       if (response.success) {
         return {
@@ -78,7 +83,9 @@ class CategoryService {
   // Update category
   async updateCategory(id, categoryData) {
     try {
-      const response = await apiClient.put(ENDPOINTS.CATEGORIES.UPDATE(id), categoryData);
+      // Transform frontend data to API format
+      const apiCategoryData = this.transformToApiFormat(categoryData);
+      const response = await apiClient.put(ENDPOINTS.CATEGORIES.UPDATE(id), apiCategoryData);
       
       if (response.success) {
         return {
@@ -126,12 +133,25 @@ class CategoryService {
   // Transform API category data to frontend format
   transformCategoryData(apiCategory) {
     return {
-      id: apiCategory.item_category_id,
-      name: apiCategory.item_category_description,
-      description: apiCategory.item_category_description,
-      isActive: true, // Default since API doesn't provide this
-      color: this.getCategoryColor(apiCategory.item_category_id),
-      type: this.getCategoryType(apiCategory.item_category_description),
+      id: apiCategory.id,
+      name: apiCategory.name,
+      description: apiCategory.description || 'No description available',
+      isActive: apiCategory.is_displayed,
+      displayPicture: apiCategory.display_picture,
+      createdAt: apiCategory.created_at,
+      updatedAt: apiCategory.updated_at,
+      color: this.getCategoryColor(apiCategory.id),
+      type: this.getCategoryType(apiCategory.name),
+    };
+  }
+
+  // Transform frontend data to API format
+  transformToApiFormat(frontendData) {
+    return {
+      name: frontendData.name,
+      description: frontendData.description || null,
+      is_displayed: frontendData.isActive !== undefined ? frontendData.isActive : true,
+      display_picture: frontendData.displayPicture || null,
     };
   }
 
@@ -140,7 +160,7 @@ class CategoryService {
     return apiCategories.map(category => this.transformCategoryData(category));
   }
 
-  // Get category color based on ID
+  // Get category color based on ID or name
   getCategoryColor(categoryId) {
     const colors = [
       'blue', 'green', 'purple', 'orange', 'pink', 
@@ -149,19 +169,34 @@ class CategoryService {
     return colors[categoryId % colors.length];
   }
 
-  // Determine category type based on description
-  getCategoryType(description) {
-    const lowerDesc = description.toLowerCase();
+  // Determine category type based on name
+  getCategoryType(name) {
+    if (!name) return 'other';
     
+    const lowerName = name.toLowerCase();
+    
+    // Drink categories
+    if (['coffee', 'tea', 'chocolate', 'frappe', 'mocktail', 'artisan tea', 'signature drink', 'other drink'].some(drink => 
+        lowerName.includes(drink.toLowerCase()))) {
+      return 'drink';
+    }
+    
+    // Food categories
     if (['pasta', 'food', 'snacks', 'dessert', 'platter'].some(food => 
-        lowerDesc.includes(food))) {
+        lowerName.includes(food.toLowerCase()))) {
       return 'food';
     }
     
-    if (lowerDesc.includes('drink') || lowerDesc.includes('tea') || 
-        lowerDesc.includes('coffee') || lowerDesc.includes('mocktail') ||
-        lowerDesc.includes('frappe') || lowerDesc.includes('chocolate')) {
-      return 'drink';
+    // Package or bundle categories
+    if (['paket', 'package', 'bundle'].some(pkg => 
+        lowerName.includes(pkg.toLowerCase()))) {
+      return 'package';
+    }
+    
+    // Extra items
+    if (['extras', 'extra', 'addon', 'add-on'].some(extra => 
+        lowerName.includes(extra.toLowerCase()))) {
+      return 'extra';
     }
     
     return 'other';
@@ -180,6 +215,8 @@ class CategoryService {
       const groupedCategories = {
         food: transformedCategories.filter(cat => cat.type === 'food'),
         drink: transformedCategories.filter(cat => cat.type === 'drink'),
+        package: transformedCategories.filter(cat => cat.type === 'package'),
+        extra: transformedCategories.filter(cat => cat.type === 'extra'),
         other: transformedCategories.filter(cat => cat.type === 'other'),
       };
 
@@ -193,7 +230,105 @@ class CategoryService {
       return {
         success: false,
         error: error.message,
-        data: { food: [], drink: [], other: [] },
+        data: { food: [], drink: [], package: [], extra: [], other: [] },
+      };
+    }
+  }
+
+  // Get categories filtered by display status
+  async getDisplayedCategories() {
+    try {
+      const result = await this.getCategories();
+      
+      if (!result.success) {
+        return result;
+      }
+
+      const transformedCategories = this.transformCategoriesData(result.data);
+      const displayedCategories = transformedCategories.filter(cat => cat.isActive);
+
+      return {
+        success: true,
+        data: displayedCategories,
+        totalCount: displayedCategories.length,
+      };
+    } catch (error) {
+      console.error('Error getting displayed categories:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: [],
+      };
+    }
+  }
+
+  // Search categories by name or description
+  async searchCategories(searchTerm) {
+    try {
+      const result = await this.getCategories();
+      
+      if (!result.success) {
+        return result;
+      }
+
+      const transformedCategories = this.transformCategoriesData(result.data);
+      const filteredCategories = transformedCategories.filter(cat => 
+        cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (cat.description && cat.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+
+      return {
+        success: true,
+        data: filteredCategories,
+        totalCount: filteredCategories.length,
+        searchTerm,
+      };
+    } catch (error) {
+      console.error('Error searching categories:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: [],
+      };
+    }
+  }
+
+  // Get category statistics
+  async getCategoryStats() {
+    try {
+      const result = await this.getCategories();
+      
+      if (!result.success) {
+        return result;
+      }
+
+      const transformedCategories = this.transformCategoriesData(result.data);
+      
+      const stats = {
+        total: transformedCategories.length,
+        displayed: transformedCategories.filter(cat => cat.isActive).length,
+        hidden: transformedCategories.filter(cat => !cat.isActive).length,
+        byType: {
+          food: transformedCategories.filter(cat => cat.type === 'food').length,
+          drink: transformedCategories.filter(cat => cat.type === 'drink').length,
+          package: transformedCategories.filter(cat => cat.type === 'package').length,
+          extra: transformedCategories.filter(cat => cat.type === 'extra').length,
+          other: transformedCategories.filter(cat => cat.type === 'other').length,
+        },
+        withDescription: transformedCategories.filter(cat => cat.description && cat.description !== 'No description available').length,
+        withDisplayPicture: transformedCategories.filter(cat => cat.displayPicture).length,
+      };
+
+      return {
+        success: true,
+        data: stats,
+      };
+    } catch (error) {
+      console.error('Error getting category stats:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: null,
       };
     }
   }
