@@ -168,33 +168,45 @@ const ProductModal = ({
             {productForm.imagePreview ? (
               <div className="relative">
                 <div className="border-2 border-gray-300 border-dashed rounded-lg p-4">
-                  <div className="relative">
+                  <div className="relative group">
                     <img
                       src={productForm.imagePreview}
                       alt="Product preview"
-                      className="w-full h-48 object-cover rounded-lg"
+                      className="w-full aspect-square object-cover rounded-lg"
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
-                      <div className="opacity-0 hover:opacity-100 transition-opacity duration-200">
+                    {/* Always visible overlay with replace/remove buttons */}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 rounded-lg flex items-center justify-center">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2">
                         <button
                           type="button"
                           onClick={handleFileSelect}
-                          className="bg-white text-gray-700 px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors mr-2"
+                          className="bg-white text-gray-700 px-3 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors flex items-center"
                         >
-                          <Upload className="w-4 h-4 inline mr-2" />
-                          Change
+                          <Upload className="w-4 h-4 mr-2" />
+                          Replace
                         </button>
                         <button
                           type="button"
                           onClick={onClearImage}
-                          className="bg-red-600 text-white px-3 py-2 rounded-lg shadow-md hover:bg-red-700 transition-colors"
+                          className="bg-red-600 text-white px-3 py-2 rounded-lg shadow-md hover:bg-red-700 transition-colors flex items-center"
                         >
-                          <Trash2 className="w-4 h-4 inline mr-2" />
+                          <Trash2 className="w-4 h-4 mr-2" />
                           Remove
                         </button>
                       </div>
                     </div>
+                    
+                    {/* Corner button for quick replace */}
+                    <button
+                      type="button"
+                      onClick={handleFileSelect}
+                      className="absolute top-2 right-2 bg-white bg-opacity-90 hover:bg-opacity-100 text-gray-700 p-1.5 rounded-full shadow-md transition-all duration-200 hover:scale-110"
+                      title="Replace image"
+                    >
+                      <Upload className="w-4 h-4" />
+                    </button>
                   </div>
+                  
                   <div className="mt-3 text-center">
                     <p className="text-sm text-gray-600">
                       {productForm.image ? productForm.image.name : 'Current image'}
@@ -204,6 +216,15 @@ const ProductModal = ({
                         Size: {(productForm.image.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                     )}
+                    
+                    {/* Additional replace button below image */}
+                    <button
+                      type="button"
+                      onClick={handleFileSelect}
+                      className="mt-2 text-sm text-orange-600 hover:text-orange-700 underline hover:no-underline transition-colors"
+                    >
+                      Click to replace image
+                    </button>
                   </div>
                 </div>
               </div>
