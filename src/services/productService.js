@@ -207,20 +207,23 @@ class ProductService {
   transformProductData(apiProduct) {
     return {
       id: apiProduct.id,
-      name: apiProduct.name,
-      description: apiProduct.description || 'No description available',
+      name: apiProduct.name || '',
+      description: apiProduct.description || '',
       price: parseFloat(apiProduct.price) || 0,
       isActive: apiProduct.is_active,
-      imagePath: apiProduct.image_path,
+      imagePath: apiProduct.image_path || '',
       createdAt: apiProduct.created_at,
       updatedAt: apiProduct.updated_at,
       
-      // Category information
+      // Category information - ensure safe access
       category: apiProduct.category ? {
         id: apiProduct.category.id,
         name: apiProduct.category.name,
         description: apiProduct.category.description,
       } : null,
+      
+      // Add categoryId for form compatibility
+      categoryId: apiProduct.category ? apiProduct.category.id : null,
       
       // Variants information
       variants: apiProduct.variants ? apiProduct.variants.map(variant => ({
@@ -241,6 +244,10 @@ class ProductService {
       maxPrice: apiProduct.variants && apiProduct.variants.length > 0 
         ? Math.max(...apiProduct.variants.map(v => parseFloat(v.price) || 0))
         : parseFloat(apiProduct.price) || 0,
+        
+      // Additional form-friendly fields
+      priceString: apiProduct.price?.toString() || '0',
+      categoryIdString: apiProduct.category?.id?.toString() || '',
     };
   }
 

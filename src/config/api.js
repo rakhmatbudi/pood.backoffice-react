@@ -18,7 +18,7 @@ const ENDPOINTS = {
   
   // Product/Menu endpoints
   PRODUCTS: {
-    LIST: '/menu-items/',
+    LIST: '/menu-items/?includeInactive=true',
     CREATE: '/menu-items/',
     UPDATE: (id) => `/menu-items/${id}/`,
     DELETE: (id) => `/menu-items/${id}/`,

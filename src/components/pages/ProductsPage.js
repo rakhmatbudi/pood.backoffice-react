@@ -9,17 +9,7 @@ import ProductModal from '../modals/ProductModal';
 import productService from '../../services/productService';
 import categoryService from '../../services/categoryService';
 
-const ProductsPage = ({
-  showProductModal,
-  editingProduct,
-  productForm,
-  setShowProductModal,
-  setProductForm,
-  handleAddProduct,
-  handleEditProduct,
-  handleDeleteProduct,
-  handleSaveProduct
-}) => {
+const ProductsPage = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,11 +19,23 @@ const ProductsPage = ({
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priceFilter, setPriceFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('list'); // Always use table view
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState(null);
-  const [sortBy, setSortBy] = useState('name'); // 'name', 'price', 'created_at'
-  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
+
+  // Modal and form state
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [productForm, setProductForm] = useState({
+    name: '',
+    category: '',
+    price: '',
+    description: '',
+    stock: '',
+    image: '',
+    isActive: true
+  });
 
   // Fetch products using the service
   const fetchProducts = async () => {
@@ -83,8 +85,45 @@ const ProductsPage = ({
     }
   };
 
+  // Handle add product
+  const handleAddProduct = () => {
+    setEditingProduct(null);
+    setProductForm({
+      name: '',
+      category: categories.find(c => c.isActive)?.id?.toString() || '',
+      price: '',
+      description: '',
+      stock: '',
+      image: '',
+      isActive: true
+    });
+    setShowProductModal(true);
+  };
+
+  // Handle edit product - convert API structure to form structure
+  const handleEditProduct = (product) => {
+    try {
+      console.log('Editing product:', product);
+      
+      setEditingProduct(product);
+      setProductForm({
+        name: product.name || '',
+        category: product.category?.id?.toString() || product.categoryId?.toString() || '',
+        price: product.price?.toString() || '0',
+        description: product.description || '',
+        stock: '50', // Default stock since API doesn't provide this
+        image: product.imagePath || '',
+        isActive: product.isActive ?? true
+      });
+      setShowProductModal(true);
+    } catch (error) {
+      console.error('Error in handleEditProduct:', error);
+      alert('Error opening product for editing. Please try again.');
+    }
+  };
+
   // Handle product deletion
-  const handleDeleteProductWithService = async (productId) => {
+  const handleDeleteProduct = async (productId) => {
     if (!window.confirm('Are you sure you want to delete this product?')) {
       return;
     }
@@ -103,6 +142,43 @@ const ProductsPage = ({
     } catch (err) {
       setError(err.message);
       console.error('Error deleting product:', err);
+    }
+  };
+
+  // Handle save product
+  const handleSaveProduct = async () => {
+    if (!productForm.name || !productForm.price || !productForm.description) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const productData = {
+        name: productForm.name,
+        description: productForm.description,
+        price: parseFloat(productForm.price),
+        categoryId: parseInt(productForm.category),
+        isActive: productForm.isActive,
+        imagePath: productForm.image || null,
+      };
+
+      let result;
+      if (editingProduct) {
+        result = await productService.updateProduct(editingProduct.id, productData);
+      } else {
+        result = await productService.createProduct(productData);
+      }
+
+      if (result.success) {
+        setShowProductModal(false);
+        fetchProducts(); // Refresh the list
+        fetchStats(); // Refresh stats
+      } else {
+        alert(result.error || 'Failed to save product');
+      }
+    } catch (err) {
+      console.error('Error saving product:', err);
+      alert('Error saving product. Please try again.');
     }
   };
 
@@ -681,7 +757,7 @@ const ProductsPage = ({
           editingProduct={editingProduct}
           productForm={productForm}
           setProductForm={setProductForm}
-          setShowProductModal={setShowProductModal}
+          setShowModal={setShowProductModal}
           handleSaveProduct={handleSaveProduct}
           categories={categories}
         />
