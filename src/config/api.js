@@ -26,7 +26,7 @@ const ENDPOINTS = {
     BY_CATEGORY: (categoryId) => `/products/category/${categoryId}`,
   },
   
-  // Menu endpoints (for future use)
+  // Menu endpoints
   MENU: {
     LIST: '/menu',
     FEATURED: '/menu/featured',

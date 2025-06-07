@@ -3,9 +3,9 @@
 
 export { default as apiClient } from './apiClient';
 export { default as categoryService } from './categoryService';
+export { default as productService } from './productService';
 
 // Future services can be added here:
-// export { default as productService } from './productService';
 // export { default as orderService } from './orderService';
 // export { default as authService } from './authService';
 // export { default as menuService } from './menuService';
@@ -13,7 +13,7 @@ export { default as categoryService } from './categoryService';
 // You can also create grouped exports for better organization:
 export const services = {
   category: () => import('./categoryService'),
-  // product: () => import('./productService'),
+  product: () => import('./productService'),
   // order: () => import('./orderService'),
   // auth: () => import('./authService'),
 };
