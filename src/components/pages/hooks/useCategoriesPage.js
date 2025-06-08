@@ -1,6 +1,7 @@
 // src/components/pages/hooks/useCategoriesPage.js
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import categoryService from '../../../services/categoryService';
+import { API_CONFIG, ENDPOINTS } from '../../../config/api';
 
 export const useCategoriesPage = () => {
   // Categories state
@@ -26,8 +27,12 @@ export const useCategoriesPage = () => {
     name: '',
     description: '',
     type: 'food',
-    color: 'blue',
-    isActive: true
+    is_displayed: true,
+    imageFile: null,
+    imageUrl: '',
+    display_picture: null,
+    hasNewImage: false,
+    removeImage: false
   });
 
   const resetForm = useCallback(() => {
@@ -35,8 +40,12 @@ export const useCategoriesPage = () => {
       name: '',
       description: '',
       type: 'food',
-      color: 'blue',
-      isActive: true
+      is_displayed: true,
+      imageFile: null,
+      imageUrl: '',
+      display_picture: null,
+      hasNewImage: false,
+      removeImage: false
     });
   }, []);
 
@@ -91,14 +100,18 @@ export const useCategoriesPage = () => {
     setCategoryForm({
       name: category.name || '',
       description: category.description || '',
-      type: category.type || 'food',
-      color: category.color || 'blue',
-      isActive: category.isActive !== undefined ? category.isActive : true
+      type: category.type || 'food', // Ensure type has a default value
+      is_displayed: category.is_displayed !== undefined ? category.is_displayed : true,
+      imageFile: null,
+      imageUrl: '',
+      display_picture: category.display_picture || null,
+      hasNewImage: false,
+      removeImage: false
     });
     setShowCategoryModal(true);
   }, []);
 
-  // Handle save category
+  // Handle save category with file upload
   const handleSaveCategory = useCallback(async () => {
     try {
       setSaving(true);
@@ -108,13 +121,53 @@ export const useCategoriesPage = () => {
         return;
       }
 
-      let result;
-      if (editingCategory) {
-        result = await categoryService.updateCategory(editingCategory.id, categoryForm);
-      } else {
-        result = await categoryService.createCategory(categoryForm);
+      // Always use FormData to maintain consistency
+      const formData = new FormData();
+      
+      // Add text fields
+      formData.append('name', categoryForm.name);
+      formData.append('description', categoryForm.description || '');
+      formData.append('type', categoryForm.type || 'food'); // Default to 'food' if not set
+      formData.append('is_displayed', categoryForm.is_displayed.toString());
+      
+      // Handle image upload
+      if (categoryForm.hasNewImage && categoryForm.imageFile) {
+        formData.append('image', categoryForm.imageFile); // Make sure this matches your multer field name
+        console.log('Adding image file:', categoryForm.imageFile.name, categoryForm.imageFile.type);
+      }
+      
+      // Handle image removal
+      if (categoryForm.removeImage) {
+        formData.append('removeImage', 'true');
+        console.log('Requesting image removal');
       }
 
+      // Log FormData contents for debugging
+      console.log('FormData contents:');
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value instanceof File ? `File: ${value.name}` : value);
+      }
+
+      let response;
+      if (editingCategory) {
+        response = await fetch(`${API_CONFIG.BASE_URL}${ENDPOINTS.CATEGORIES.UPDATE(editingCategory.id)}`, {
+          method: 'PUT',
+          body: formData,
+        });
+      } else {
+        response = await fetch(`${API_CONFIG.BASE_URL}${ENDPOINTS.CATEGORIES.CREATE}`, {
+          method: 'POST',
+          body: formData,
+        });
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const result = { success: data.status === 'success', data: data.data, error: data.message };
+      
       if (result.success) {
         setShowCategoryModal(false);
         setEditingCategory(null);
@@ -128,6 +181,7 @@ export const useCategoriesPage = () => {
         alert(`Failed to save category: ${result.error || 'Unknown error'}`);
       }
     } catch (err) {
+      console.error('Error saving category:', err);
       alert(`Error saving category: ${err.message}`);
     } finally {
       setSaving(false);
@@ -200,7 +254,7 @@ export const useCategoriesPage = () => {
       } else if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
         aValue = new Date(aValue);
         bValue = new Date(bValue);
-      } else if (sortBy === 'isActive') {
+      } else if (sortBy === 'is_displayed') {
         aValue = aValue ? 1 : 0;
         bValue = bValue ? 1 : 0;
       } else {

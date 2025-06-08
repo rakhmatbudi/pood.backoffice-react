@@ -1,6 +1,6 @@
 // src/components/pages/components/CategoryTable.js
 import React from 'react';
-import { Tag, Edit2, AlertCircle, Eye, EyeOff, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
+import { Tag, Edit2, Eye, EyeOff, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
 
 const CategoryTable = ({
   categories,
@@ -16,23 +16,6 @@ const CategoryTable = ({
   onRefresh,
   onClearFilters
 }) => {
-  // Get category color classes
-  const getCategoryColorClasses = (color) => {
-    const colorMap = {
-      blue: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200' },
-      green: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200' },
-      purple: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
-      orange: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200' },
-      pink: { bg: 'bg-pink-100', text: 'text-pink-800', border: 'border-pink-200' },
-      indigo: { bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
-      teal: { bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-200' },
-      red: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200' },
-      yellow: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' },
-      gray: { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-200' },
-    };
-    return colorMap[color] || colorMap.gray;
-  };
-
   // Get type display info
   const getTypeDisplayInfo = (type) => {
     const typeMap = {
@@ -78,13 +61,11 @@ const CategoryTable = ({
               {renderSortableHeader('description', 'Description')}
               {renderSortableHeader('type', 'Type')}
               {renderSortableHeader('isActive', 'Status')}
-              {renderSortableHeader('color', 'Color')}
               <th className="text-left py-3 px-4 sm:px-6 font-semibold text-gray-800 text-sm">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {categories.map((category) => {
-              const colors = getCategoryColorClasses(category.color);
               const typeInfo = getTypeDisplayInfo(category.type);
 
               return (
@@ -96,8 +77,8 @@ const CategoryTable = ({
                   </td>
                   <td className="py-4 px-4 sm:px-6">
                     <div className="flex items-center">
-                      <div className={`${colors.bg} p-2 rounded-lg mr-3`}>
-                        <Tag className={`w-4 h-4 ${colors.text}`} />
+                      <div className="bg-gray-100 p-2 rounded-lg mr-3">
+                        <Tag className="w-4 h-4 text-gray-600" />
                       </div>
                       <div>
                         <div className="font-semibold text-gray-800 text-sm sm:text-base">
@@ -137,11 +118,6 @@ const CategoryTable = ({
                     </div>
                   </td>
                   <td className="py-4 px-4 sm:px-6">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
-                      {category.color}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 sm:px-6">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => onEdit(category)}
@@ -151,15 +127,6 @@ const CategoryTable = ({
                       >
                         <Edit2 size={14} className="sm:hidden" />
                         <Edit2 size={16} className="hidden sm:block" />
-                      </button>
-                      <button
-                        onClick={() => onDelete(category)}
-                        className="text-red-600 hover:text-red-800 p-1 hover:bg-red-50 rounded transition-colors"
-                        title="Delete category"
-                        disabled={saving}
-                      >
-                        <AlertCircle size={14} className="sm:hidden" />
-                        <AlertCircle size={16} className="hidden sm:block" />
                       </button>
                     </div>
                   </td>

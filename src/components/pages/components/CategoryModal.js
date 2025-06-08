@@ -1,6 +1,6 @@
 // src/components/pages/components/CategoryModal.js
 import React, { useMemo } from 'react';
-import { X, Save, RefreshCw } from 'lucide-react';
+import { X, Save, RefreshCw, Upload, Image } from 'lucide-react';
 
 const CategoryModal = ({ 
   show, 
@@ -12,17 +12,6 @@ const CategoryModal = ({
   onSave, 
   onFieldChange 
 }) => {
-  // Generate unique types from the categories data for the type dropdown
-  const availableTypes = useMemo(() => {
-    const uniqueTypes = [...new Set(categories.map(cat => cat.type).filter(Boolean))];
-    return uniqueTypes.sort();
-  }, [categories]);
-
-  // Dynamic display name - capitalize first letter
-  const getTypeDisplayName = (type) => {
-    return type.charAt(0).toUpperCase() + type.slice(1);
-  };
-
   if (!show) return null;
 
   return (
@@ -69,52 +58,75 @@ const CategoryModal = ({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Type
+              Category Image
             </label>
-            <select
-              value={form.type}
-              onChange={(e) => onFieldChange('type', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            >
-              {availableTypes.map(type => (
-                <option key={type} value={type}>
-                  {getTypeDisplayName(type)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Color
-            </label>
-            <select
-              value={form.color}
-              onChange={(e) => onFieldChange('color', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            >
-              <option value="blue">Blue</option>
-              <option value="green">Green</option>
-              <option value="purple">Purple</option>
-              <option value="orange">Orange</option>
-              <option value="pink">Pink</option>
-              <option value="indigo">Indigo</option>
-              <option value="teal">Teal</option>
-              <option value="red">Red</option>
-              <option value="yellow">Yellow</option>
-              <option value="gray">Gray</option>
-            </select>
+            <div className="flex items-center space-x-4">
+              {(form.imageUrl || form.display_picture) && (
+                <div className="flex-shrink-0">
+                  <img
+                    src={form.imageUrl || form.display_picture}
+                    alt="Category preview"
+                    className="w-16 h-16 object-cover rounded-lg border border-gray-300"
+                  />
+                </div>
+              )}
+              <div className="flex-1">
+                <div className="flex flex-col space-y-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        // Create a preview URL for the selected image
+                        const imageUrl = URL.createObjectURL(file);
+                        onFieldChange('imageFile', file);
+                        onFieldChange('imageUrl', imageUrl);
+                        onFieldChange('hasNewImage', true);
+                      }
+                    }}
+                    className="hidden"
+                    id="categoryImage"
+                  />
+                  <label
+                    htmlFor="categoryImage"
+                    className="cursor-pointer inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {form.imageUrl || form.display_picture ? 'Change Image' : 'Choose Image'}
+                  </label>
+                  {(form.imageUrl || form.display_picture) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onFieldChange('imageFile', null);
+                        onFieldChange('imageUrl', '');
+                        onFieldChange('display_picture', null);
+                        onFieldChange('removeImage', true);
+                        onFieldChange('hasNewImage', false);
+                      }}
+                      className="text-sm text-red-600 hover:text-red-800"
+                    >
+                      Remove Image
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Upload an image for this category (optional)
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center">
             <input
               type="checkbox"
-              id="isActive"
-              checked={form.isActive}
-              onChange={(e) => onFieldChange('isActive', e.target.checked)}
+              id="is_displayed"
+              checked={form.is_displayed}
+              onChange={(e) => onFieldChange('is_displayed', e.target.checked)}
               className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
             />
-            <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
+            <label htmlFor="is_displayed" className="ml-2 block text-sm text-gray-700">
               Display this category
             </label>
           </div>

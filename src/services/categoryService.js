@@ -136,12 +136,16 @@ class CategoryService {
       id: apiCategory.id,
       name: apiCategory.name,
       description: apiCategory.description || 'No description available',
-      isActive: apiCategory.is_displayed,
-      displayPicture: apiCategory.display_picture,
+      is_displayed: apiCategory.is_displayed, // ✅ Fixed: Use correct field name
+      display_picture: apiCategory.display_picture, // ✅ Fixed: Use correct field name
       createdAt: apiCategory.created_at,
       updatedAt: apiCategory.updated_at,
       color: this.getCategoryColor(apiCategory.id),
       type: this.getCategoryType(apiCategory.name),
+      
+      // Keep legacy field names for backward compatibility (if needed)
+      isActive: apiCategory.is_displayed,
+      displayPicture: apiCategory.display_picture,
     };
   }
 
@@ -150,8 +154,8 @@ class CategoryService {
     return {
       name: frontendData.name,
       description: frontendData.description || null,
-      is_displayed: frontendData.isActive !== undefined ? frontendData.isActive : true,
-      display_picture: frontendData.displayPicture || null,
+      is_displayed: frontendData.is_displayed !== undefined ? frontendData.is_displayed : true, // ✅ Fixed: Use correct field name
+      display_picture: frontendData.display_picture || null, // ✅ Fixed: Use correct field name
     };
   }
 
@@ -245,7 +249,7 @@ class CategoryService {
       }
 
       const transformedCategories = this.transformCategoriesData(result.data);
-      const displayedCategories = transformedCategories.filter(cat => cat.isActive);
+      const displayedCategories = transformedCategories.filter(cat => cat.is_displayed); // ✅ Fixed: Use correct field name
 
       return {
         success: true,
@@ -306,8 +310,8 @@ class CategoryService {
       
       const stats = {
         total: transformedCategories.length,
-        displayed: transformedCategories.filter(cat => cat.isActive).length,
-        hidden: transformedCategories.filter(cat => !cat.isActive).length,
+        displayed: transformedCategories.filter(cat => cat.is_displayed).length, // ✅ Fixed: Use correct field name
+        hidden: transformedCategories.filter(cat => !cat.is_displayed).length, // ✅ Fixed: Use correct field name
         byType: {
           food: transformedCategories.filter(cat => cat.type === 'food').length,
           drink: transformedCategories.filter(cat => cat.type === 'drink').length,
@@ -316,7 +320,7 @@ class CategoryService {
           other: transformedCategories.filter(cat => cat.type === 'other').length,
         },
         withDescription: transformedCategories.filter(cat => cat.description && cat.description !== 'No description available').length,
-        withDisplayPicture: transformedCategories.filter(cat => cat.displayPicture).length,
+        withDisplayPicture: transformedCategories.filter(cat => cat.display_picture).length, // ✅ Fixed: Use correct field name
       };
 
       return {
