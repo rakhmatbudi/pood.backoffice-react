@@ -8,7 +8,6 @@ const ProductModal = ({
   setProductForm,
   setShowModal,
   handleSaveProduct,
-  categories,
   onImageChange,
   onClearImage
 }) => {
@@ -80,26 +79,6 @@ const ProductModal = ({
               placeholder="Enter product name"
               required
             />
-          </div>
-
-          {/* Category */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Category *
-            </label>
-            <select
-              value={productForm.category}
-              onChange={(e) => handleInputChange('category', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              required
-            >
-              <option value="">Select a category</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* Price */}

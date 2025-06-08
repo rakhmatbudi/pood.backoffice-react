@@ -4,8 +4,7 @@ src/
 │   ├── useNavigation.js        # Navigation state
 │   ├── useCategories.js        # Category management
 │   ├── useProducts.js          # Product management
-│   └── useSettings.js
-
+│   └── useSettings.js          # App settings management
 ├── utils/
 │   ├── formatters.js           # Display formatting
 │   ├── constants.js            # App constants
@@ -16,24 +15,31 @@ src/
 │   ├── DashboardLayout.js
 │   ├── Sidebar.js
 │   ├── pages/
+│   │   ├── components/
+│   │   │   ├── CategoryFilters.js
+│   │   │   ├── CategoryHeader.js
+│   │   │   ├── CategoryModal.js
+│   │   │   ├── CategoryStats.js
+│   │   │   ├── CategoryTable.js
+│   │   │   └── DeleteConfirmModal.js
+│   │   ├── hooks/
+│   │   │   └── useCategoriesPage.js
 │   │   ├── DashboardPage.js
 │   │   ├── ProductsPage.js
 │   │   └── CategoriesPage.js
-│   └── modals/
-│       ├── ProductModal.js
-│       └── CategoryModal.js
+│   ├── modals/
+│   │   └── ProductModal.js
+│   └── common/
+│       ├── ErrorMessage.js
+│       └── LoadingSpinner.js
 ├── config/
-│   └── api.js                 # API configuration and endpoints
+│   ├── api.js                  # API configuration and endpoints
 │   └── settings.json
 ├── services/
-│   ├── apiClient.js          # Generic HTTP client with retry logic
-│   ├── categoryService.js    # Category-specific API operations
-│   └── index.js              # Centralized service exports
-├── components/pages/
-│    └── CategoriesPage.js     # Refactored component
+│   ├── apiClient.js            # Generic HTTP client with retry logic
+│   ├── categoryService.js      # Category-specific API operations
+│   ├── productService.js       # Product-specific API operations
+│   └── index.js                # Centralized service exports
 ├── App.js
-├── index.js                        # React entry point
-└── index.css                       # Global styles with Tailwind
-
-
-
+├── index.js                    # React entry point
+└── index.css                   # Global styles with Tailwind

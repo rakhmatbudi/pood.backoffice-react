@@ -1,5 +1,6 @@
-
 // src/utils/formatters.js
+
+// Price formatting
 export const formatPrice = (price) => {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -8,10 +9,12 @@ export const formatPrice = (price) => {
   }).format(price);
 };
 
+// Number formatting
 export const formatNumber = (number) => {
   return new Intl.NumberFormat('id-ID').format(number);
 };
 
+// Date formatting
 export const formatDate = (date) => {
   return new Intl.DateTimeFormat('id-ID', {
     year: 'numeric',
@@ -20,6 +23,7 @@ export const formatDate = (date) => {
   }).format(new Date(date));
 };
 
+// Date and time formatting
 export const formatDateTime = (date) => {
   return new Intl.DateTimeFormat('id-ID', {
     year: 'numeric',
@@ -30,6 +34,7 @@ export const formatDateTime = (date) => {
   }).format(new Date(date));
 };
 
+// Category color classes for Tailwind
 export const getCategoryColorClasses = (color) => {
   const colorClasses = {
     green: { 
@@ -100,13 +105,42 @@ export const getCategoryColorClasses = (color) => {
   return colorClasses[color] || colorClasses.blue;
 };
 
+// Percentage formatting
 export const formatPercentage = (value, total) => {
   if (total === 0) return '0%';
   const percentage = (value / total) * 100;
   return `${Math.round(percentage)}%`;
 };
 
+// Text truncation
 export const truncateText = (text, maxLength = 50) => {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength) + '...';
+};
+
+// Get price display (with variants consideration) - specific to products
+export const getPriceDisplay = (product) => {
+  if (product.hasVariants && product.variants && product.variants.length > 0) {
+    const activeVariants = product.variants.filter(v => v.isActive);
+    if (activeVariants.length > 0) {
+      const minPrice = Math.min(...activeVariants.map(v => v.price));
+      const maxPrice = Math.max(...activeVariants.map(v => v.price));
+      
+      if (minPrice === maxPrice) {
+        return formatPrice(minPrice);
+      } else {
+        return `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+      }
+    }
+  }
+  return formatPrice(product.price);
+};
+
+// Format file size for display
+export const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
