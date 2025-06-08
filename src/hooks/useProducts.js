@@ -1,342 +1,330 @@
-// src/hooks/useProducts.js
-import { useState, useEffect, useCallback } from 'react';
+// src/hooks/useProducts.js - Works with separate useProductForm hook
+import { useState, useEffect } from 'react';
+import { API_CONFIG, ENDPOINTS, ERROR_MESSAGES } from '../config/api';
 
 export const useProducts = () => {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [stats, setStats] = useState(null);
 
-  // Use your production API URL
-  const API_BASE_URL = 'https://api.pood.lol';
+  // Create API URL helper
+  const createApiUrl = (endpoint) => `${API_CONFIG.BASE_URL}${endpoint}`;
 
-  // Helper function to handle API responses
-  const handleApiResponse = async (response, operation) => {
-    const contentType = response.headers.get('content-type');
-    
-    // Check if response is HTML (error page)
-    if (contentType && contentType.includes('text/html')) {
-      throw new Error(`API endpoint not found. Server returned HTML instead of JSON for ${operation}. Check if your API server is running and the endpoint exists.`);
-    }
-    
-    // Check if response is not ok
-    if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      
-      try {
-        // Try to get error details from JSON response
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorData.detail || errorMessage;
-      } catch (e) {
-        // If JSON parsing fails, use the status text
-      }
-      
-      throw new Error(errorMessage);
-    }
-    
-    // Parse JSON response
+  // Generic API request helper
+  const apiRequest = async (url, options = {}) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
     try {
-      const result = await response.json();
-      return result;
-    } catch (e) {
-      throw new Error(`Invalid JSON response from server for ${operation}`);
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...options.headers,
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
+      }
+      throw err;
     }
   };
 
-  // Generate stats from products (since there's no stats endpoint)
-  const generateStats = useCallback((productList) => {
-    if (!productList || productList.length === 0) {
-      return {
-        total: 0,
-        active: 0,
-        inactive: 0,
-        withVariants: 0,
-        withImages: 0,
-        averagePrice: 0,
-        priceRanges: {
-          under25k: 0,
-          '25k-50k': 0,
-          '50k-100k': 0,
-          over100k: 0
-        }
-      };
+  // Fetch categories from the correct API endpoint
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      
+      // Use the correct categories API endpoint
+      const url = 'https://api.pood.lol/menu-categories/';
+      console.log('🔍 Fetching categories from:', url);
+      
+      const data = await apiRequest(url);
+      console.log('📦 Raw categories response:', data);
+      
+      let categories = [];
+      
+      // Handle different possible response structures
+      if (data.status === 'success' && Array.isArray(data.data)) {
+        categories = data.data;
+      } else if (Array.isArray(data)) {
+        categories = data;
+      } else if (data.results && Array.isArray(data.results)) {
+        categories = data.results;
+      } else if (data.data && Array.isArray(data.data)) {
+        categories = data.data;
+      } else {
+        console.warn('⚠️ Unexpected categories response structure:', data);
+        categories = [];
+      }
+      
+      // Map categories to a consistent format based on the actual API response
+      categories = categories.map(category => {
+        console.log('📝 Processing category:', category);
+        return {
+          // Keep all original fields
+          ...category,
+          // Add standardized fields for the frontend
+          id: category.id,
+          name: category.name,
+          description: category.description || '',
+          // Use is_displayed as the active status
+          isActive: category.is_displayed,
+          // Keep original field names for API calls
+          is_displayed: category.is_displayed,
+          menu_category_group: category.menu_category_group,
+          sku_id: category.sku_id,
+          is_highlight: category.is_highlight,
+          is_display_for_self_order: category.is_display_for_self_order,
+          display_picture: category.display_picture,
+          created_at: category.created_at,
+          updated_at: category.updated_at
+        };
+      });
+      
+      console.log('✅ Processed categories:', categories);
+      console.log('📊 Categories count:', categories.length);
+      console.log('🎯 Active categories:', categories.filter(c => c.isActive).length);
+      
+      setCategories(categories);
+    } catch (err) {
+      console.error('❌ Error fetching categories:', err);
+      // Set empty array on error to prevent app crashes
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
     }
+  };
 
-    const total = productList.length;
-    const active = productList.filter(p => p.isActive).length;
-    const inactive = total - active;
-    const withVariants = productList.filter(p => p.hasVariants).length;
-    const withImages = productList.filter(p => p.imagePath).length;
-    const averagePrice = productList.reduce((sum, p) => sum + (p.price || 0), 0) / total;
-
-    const priceRanges = {
-      under25k: productList.filter(p => (p.price || 0) < 25000).length,
-      '25k-50k': productList.filter(p => (p.price || 0) >= 25000 && (p.price || 0) < 50000).length,
-      '50k-100k': productList.filter(p => (p.price || 0) >= 50000 && (p.price || 0) < 100000).length,
-      over100k: productList.filter(p => (p.price || 0) >= 100000).length
-    };
-
-    return {
-      total,
-      active,
-      inactive,
-      withVariants,
-      withImages,
-      averagePrice,
-      priceRanges
-    };
-  }, []);
-
-  // Fetch products from API
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = async () => {
     try {
       setLoading(true);
       setError(null);
+      const url = createApiUrl(ENDPOINTS.PRODUCTS.LIST);
+      const data = await apiRequest(url);
       
-      const url = `${API_BASE_URL}/menu-items/?includeInactive=true`;
-      console.log('Fetching products from:', url);
+      let products = [];
+      if (data.status === 'success' && Array.isArray(data.data)) {
+        products = data.data;
+      } else if (Array.isArray(data)) {
+        products = data;
+      } else {
+        products = data.results || data.data || [];
+      }
       
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
+      products = products.map(product => {
+        const mappedVariants = product.variants ? product.variants.map(variant => ({
+          ...variant,
+          isActive: variant.is_active,
+          is_active: variant.is_active,
+        })) : [];
+
+        return {
+          ...product,
+          isActive: product.is_active,
+          image: product.image_path || product.image || '',
+          category: product.category,
+          categoryId: product.category?.id || null,
+          categoryName: product.category?.name || '',
+          categoryData: product.category,
+          variants: mappedVariants,
+          hasVariants: mappedVariants.length > 0,
+          activeVariantsCount: mappedVariants.filter(v => v.isActive).length,
+          updatedAt: product.updated_at,
+          createdAt: product.created_at,
+        };
       });
       
-      const result = await handleApiResponse(response, 'fetch products');
-      
-      if (result.status === 'success' && result.data) {
-        // Transform the data to match our component expectations
-        const transformedProducts = result.data.map(product => ({
-          id: product.id,
-          name: product.name,
-          description: product.description,
-          price: parseFloat(product.price),
-          isActive: product.is_active,
-          imagePath: product.image_path,
-          category: product.category,
-          categoryId: product.category?.id,
-          variants: product.variants || [],
-          hasVariants: product.variants && product.variants.length > 0,
-          activeVariantsCount: product.variants ? product.variants.filter(v => v.is_active).length : 0,
-          updatedAt: product.updated_at,
-          createdAt: product.created_at
-        }));
-        
-        setProducts(transformedProducts);
-        setTotalCount(transformedProducts.length);
-        console.log('✅ Successfully loaded', transformedProducts.length, 'products');
-      } else {
-        throw new Error(result.message || 'Failed to fetch products');
-      }
+      console.log('✅ Fetched products:', products.length);
+      setProducts(products);
     } catch (err) {
       setError(err.message);
-      console.error('Error in fetchProducts:', err);
+      console.error('Error fetching products:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  // Fetch product statistics (generate from products data)
-  const fetchStats = useCallback(async () => {
-    try {
-      // Generate stats from current products since there's no dedicated stats endpoint
-      setStats(generateStats(products));
-    } catch (err) {
-      console.error('Error generating stats:', err);
-    }
-  }, [products, generateStats]);
-
-  // Create product
-  const createProduct = useCallback(async (productData, imageFile = null) => {
-    try {
-      const formData = new FormData();
-      formData.append('name', productData.name);
-      formData.append('description', productData.description);
-      formData.append('price', productData.price.toString());
-      formData.append('category', productData.categoryId); // Your API expects 'category'
-      formData.append('is_active', productData.isActive.toString()); // Your API expects 'is_active'
-      
-      if (imageFile) {
-        formData.append('image', imageFile);
-      }
-      
-      const url = `${API_BASE_URL}/menu-items/`;
-      console.log('Creating product at:', url);
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        body: formData
-      });
-      
-      const result = await handleApiResponse(response, 'create product');
-      
-      if (result.status === 'success' || result.id) {
-        await fetchProducts();
-        return { success: true };
-      } else {
-        return { success: false, error: result.message || 'Failed to create product' };
-      }
-    } catch (err) {
-      console.error('Error creating product:', err);
-      return { success: false, error: err.message };
-    }
-  }, [fetchProducts]);
-
-  // Update product
-  const updateProduct = useCallback(async (productId, productData, imageFile = null) => {
-    try {
-      const formData = new FormData();
-      formData.append('name', productData.name);
-      formData.append('description', productData.description);
-      formData.append('price', productData.price.toString());
-      formData.append('category', productData.categoryId); // Your API expects 'category'
-      formData.append('is_active', productData.isActive.toString()); // Your API expects 'is_active'
-      
-      if (imageFile) {
-        formData.append('image', imageFile);
-      }
-      
-      const url = `${API_BASE_URL}/menu-items/${productId}/`;
-      console.log('Updating product at:', url);
-      
-      const response = await fetch(url, {
-        method: 'PUT',
-        body: formData
-      });
-      
-      const result = await handleApiResponse(response, 'update product');
-      
-      if (result.status === 'success' || result.id) {
-        await fetchProducts();
-        return { success: true };
-      } else {
-        return { success: false, error: result.message || 'Failed to update product' };
-      }
-    } catch (err) {
-      console.error('Error updating product:', err);
-      return { success: false, error: err.message };
-    }
-  }, [fetchProducts]);
-
-  // Delete product
-  const deleteProduct = useCallback(async (productId) => {
-    try {
-      const url = `${API_BASE_URL}/menu-items/${productId}/`;
-      console.log('Deleting product at:', url);
-      
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      const result = await handleApiResponse(response, 'delete product');
-      
-      if (result.status === 'success' || response.status === 204) {
-        setProducts(prev => prev.filter(product => product.id !== productId));
-        setTotalCount(prev => prev - 1);
-        return { success: true };
-      } else {
-        return { success: false, error: result.message || 'Failed to delete product' };
-      }
-    } catch (err) {
-      console.error('Error deleting product:', err);
-      return { success: false, error: err.message };
-    }
-  }, []);
-
-  // Initialize data on mount
   useEffect(() => {
+    fetchCategories();
     fetchProducts();
-  }, [fetchProducts]);
+  }, []);
 
-  // Update stats when products change
-  useEffect(() => {
-    if (products.length >= 0) {
-      setStats(generateStats(products));
+  const handleDeleteProduct = async (id) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      try {
+        const url = createApiUrl(ENDPOINTS.PRODUCTS.DELETE(id));
+        await apiRequest(url, {
+          method: 'DELETE',
+        });
+
+        setProducts(products.filter(p => p.id !== id));
+      } catch (err) {
+        alert(`Error deleting product: ${err.message}`);
+        console.error('Error deleting product:', err);
+      }
     }
-  }, [products, generateStats]);
+  };
+
+  // Save product function that works with useProductForm
+  const saveProduct = async (productData, isEditing = false, editingProductId = null) => {
+    try {
+      console.log('💾 Saving product with data:', productData);
+
+      if (isEditing && editingProductId) {
+        // Update existing product
+        const url = createApiUrl(ENDPOINTS.PRODUCTS.UPDATE(editingProductId));
+        const updatedProduct = await apiRequest(url, {
+          method: 'PUT',
+          body: JSON.stringify(productData),
+        });
+
+        // Map response back to frontend format
+        const mappedVariants = updatedProduct.variants ? updatedProduct.variants.map(variant => ({
+          ...variant,
+          isActive: variant.is_active,
+          is_active: variant.is_active,
+        })) : [];
+
+        const mappedProduct = {
+          ...updatedProduct,
+          isActive: updatedProduct.is_active,
+          image: updatedProduct.image_path || '',
+          category: updatedProduct.category,
+          categoryId: updatedProduct.category?.id || null,
+          categoryName: updatedProduct.category?.name || '',
+          categoryData: updatedProduct.category,
+          variants: mappedVariants,
+          hasVariants: mappedVariants.length > 0,
+          activeVariantsCount: mappedVariants.filter(v => v.isActive).length,
+          updatedAt: updatedProduct.updated_at,
+          createdAt: updatedProduct.created_at,
+        };
+
+        setProducts(products.map(p => 
+          p.id === editingProductId ? mappedProduct : p
+        ));
+      } else {
+        // Create new product
+        const url = createApiUrl(ENDPOINTS.PRODUCTS.CREATE);
+        const newProduct = await apiRequest(url, {
+          method: 'POST',
+          body: JSON.stringify(productData),
+        });
+
+        // Map response back to frontend format
+        const mappedVariants = newProduct.variants ? newProduct.variants.map(variant => ({
+          ...variant,
+          isActive: variant.is_active,
+          is_active: variant.is_active,
+        })) : [];
+
+        const mappedProduct = {
+          ...newProduct,
+          isActive: newProduct.is_active,
+          image: newProduct.image_path || '',
+          category: newProduct.category,
+          categoryId: newProduct.category?.id || null,
+          categoryName: newProduct.category?.name || '',
+          categoryData: newProduct.category,
+          variants: mappedVariants,
+          hasVariants: mappedVariants.length > 0,
+          activeVariantsCount: mappedVariants.filter(v => v.isActive).length,
+          updatedAt: newProduct.updated_at,
+          createdAt: newProduct.created_at,
+        };
+
+        setProducts([...products, mappedProduct]);
+      }
+      
+      return { success: true };
+    } catch (err) {
+      console.error('Error saving product:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const toggleProductStatus = async (id) => {
+    try {
+      const product = products.find(p => p.id === id);
+      const url = createApiUrl(ENDPOINTS.PRODUCTS.UPDATE(id));
+      
+      const updatedData = {
+        name: product.name,
+        description: product.description,
+        price: parseFloat(product.price),
+        is_active: !product.isActive,
+        category: product.categoryId || product.category?.id,
+        image_path: product.image || '',
+        stock: product.stock || 0,
+      };
+
+      const updatedProduct = await apiRequest(url, {
+        method: 'PUT',
+        body: JSON.stringify(updatedData),
+      });
+
+      const mappedVariants = updatedProduct.variants ? updatedProduct.variants.map(variant => ({
+        ...variant,
+        isActive: variant.is_active,
+        is_active: variant.is_active,
+      })) : [];
+
+      const mappedProduct = {
+        ...updatedProduct,
+        isActive: updatedProduct.is_active,
+        image: updatedProduct.image_path || updatedProduct.image || '',
+        category: updatedProduct.category,
+        categoryId: updatedProduct.category?.id || null,
+        categoryName: updatedProduct.category?.name || '',
+        categoryData: updatedProduct.category,
+        variants: mappedVariants,
+        hasVariants: mappedVariants.length > 0,
+        activeVariantsCount: mappedVariants.filter(v => v.isActive).length,
+        updatedAt: updatedProduct.updated_at,
+        createdAt: updatedProduct.created_at,
+      };
+
+      setProducts(products.map(p => 
+        p.id === id ? mappedProduct : p
+      ));
+    } catch (err) {
+      alert(`Error updating product status: ${err.message}`);
+      console.error('Error updating product status:', err);
+    }
+  };
 
   return {
+    // Product data
     products,
+    categories,
     loading,
+    categoriesLoading,
     error,
-    totalCount,
-    stats,
+    
+    // API functions
     fetchProducts,
-    fetchStats,
-    createProduct,
-    updateProduct,
-    deleteProduct
-  };
-};
-
-// Utility functions
-export const generateNextProductId = (products) => {
-  if (products.length === 0) return 1;
-  return Math.max(...products.map(p => p.id)) + 1;
-};
-
-export const calculateDashboardStats = (products, categories) => {
-  const totalProducts = products.length;
-  const activeProducts = products.filter(p => p.isActive).length;
-  const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
-  const totalValue = products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0);
-  const lowStockProducts = products.filter(p => (p.stock || 0) < 10).length;
-  
-  const categoryStats = categories.map(category => ({
-    ...category,
-    productCount: products.filter(p => p.categoryId === category.id).length,
-    totalValue: products
-      .filter(p => p.categoryId === category.id)
-      .reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0)
-  }));
-  
-  return {
-    totalProducts,
-    activeProducts,
-    totalStock,
-    totalValue,
-    lowStockProducts,
-    categoryStats
-  };
-};
-
-export const searchProducts = (products, searchTerm) => {
-  if (!searchTerm.trim()) return products;
-  
-  const term = searchTerm.toLowerCase();
-  return products.filter(product => 
-    product.name.toLowerCase().includes(term) ||
-    (product.description && product.description.toLowerCase().includes(term))
-  );
-};
-
-export const filterProductsByCategory = (products, categoryId) => {
-  if (!categoryId || categoryId === 'all') return products;
-  return products.filter(product => product.categoryId === categoryId);
-};
-
-export const sortProducts = (products, sortBy, sortOrder = 'asc') => {
-  return [...products].sort((a, b) => {
-    let aValue = a[sortBy];
-    let bValue = b[sortBy];
+    fetchCategories,
+    handleDeleteProduct,
+    saveProduct,
+    toggleProductStatus,
     
-    // Handle string comparisons
-    if (typeof aValue === 'string') {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    }
-    
-    if (sortOrder === 'asc') {
-      return aValue > bValue ? 1 : -1;
-    } else {
-      return aValue < bValue ? 1 : -1;
-    }
-  });
+    // API helpers for useProductForm
+    apiRequest,
+    createApiUrl,
+  };
 };

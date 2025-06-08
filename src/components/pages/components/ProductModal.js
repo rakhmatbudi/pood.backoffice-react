@@ -1,4 +1,4 @@
-// src/components/modals/ProductModal.js
+// src/components/pages/components/ProductModal.js - Fixed to show all categories
 import React, { useRef } from 'react';
 import { X, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
 
@@ -9,14 +9,28 @@ const ProductModal = ({
   setShowModal,
   handleSaveProduct,
   onImageChange,
-  onClearImage
+  onClearImage,
+  categories = []
 }) => {
   const fileInputRef = useRef(null);
 
   const handleInputChange = (field, value) => {
+    let processedValue = value;
+    
+    // Handle numeric fields properly
+    if (field === 'price' || field === 'stock') {
+      // Convert empty string to null, otherwise parse as number
+      if (value === '' || value === null || value === undefined) {
+        processedValue = null;
+      } else {
+        const numValue = parseFloat(value);
+        processedValue = isNaN(numValue) ? null : numValue;
+      }
+    }
+    
     setProductForm(prev => ({
       ...prev,
-      [field]: value
+      [field]: processedValue
     }));
   };
 
@@ -44,6 +58,17 @@ const ProductModal = ({
       setShowModal(false);
     }
   };
+
+  // Get active categories and sort them
+  const activeCategories = categories
+    .filter(cat => cat.isActive)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Debug logging
+  console.log('🔍 ProductModal - All categories:', categories);
+  console.log('🔍 ProductModal - Active categories:', activeCategories);
+  console.log('🔍 ProductModal - Categories count:', categories.length);
+  console.log('🔍 ProductModal - Active count:', activeCategories.length);
 
   return (
     <div 
@@ -73,12 +98,71 @@ const ProductModal = ({
             </label>
             <input
               type="text"
-              value={productForm.name}
+              value={productForm.name || ''}
               onChange={(e) => handleInputChange('name', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               placeholder="Enter product name"
               required
             />
+          </div>
+
+          {/* Category Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Category *
+            </label>
+            
+            {/* Debug info */}
+            <div className="text-xs text-gray-500 mb-2">
+              Found {categories.length} total categories, {activeCategories.length} active
+            </div>
+            
+            {activeCategories.length > 0 ? (
+              <select
+                value={productForm.category || ''}
+                onChange={(e) => handleInputChange('category', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                required
+              >
+                <option value="">Select a category</option>
+                {activeCategories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.name} {category.menu_category_group && `(${category.menu_category_group})`}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                {categories.length === 0 ? 'Loading categories...' : 'No active categories found'}
+              </div>
+            )}
+
+            {/* Show selected category info */}
+            {productForm.category && (
+              <div className="mt-2 text-sm text-gray-600">
+                {(() => {
+                  const selectedCategory = categories.find(cat => cat.id == productForm.category);
+                  if (selectedCategory) {
+                    return (
+                      <div className="bg-gray-50 p-2 rounded border">
+                        <div className="flex items-center">
+                          <span className="font-medium">{selectedCategory.name}</span>
+                          {selectedCategory.menu_category_group && (
+                            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                              {selectedCategory.menu_category_group}
+                            </span>
+                          )}
+                        </div>
+                        {selectedCategory.description && (
+                          <p className="mt-1 text-xs text-gray-500">{selectedCategory.description}</p>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            )}
           </div>
 
           {/* Price */}
@@ -88,7 +172,7 @@ const ProductModal = ({
             </label>
             <input
               type="number"
-              value={productForm.price}
+              value={productForm.price || ''}
               onChange={(e) => handleInputChange('price', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               placeholder="Enter price"
@@ -104,7 +188,7 @@ const ProductModal = ({
               Description *
             </label>
             <textarea
-              value={productForm.description}
+              value={productForm.description || ''}
               onChange={(e) => handleInputChange('description', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               placeholder="Enter product description"
@@ -120,7 +204,7 @@ const ProductModal = ({
             </label>
             <input
               type="number"
-              value={productForm.stock}
+              value={productForm.stock || ''}
               onChange={(e) => handleInputChange('stock', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               placeholder="Enter stock quantity"
@@ -151,7 +235,12 @@ const ProductModal = ({
                     <img
                       src={productForm.imagePreview}
                       alt="Product preview"
-                      className="w-full aspect-square object-cover rounded-lg"
+                      className="w-full max-w-md mx-auto aspect-square object-cover rounded-lg"
+                      onError={(e) => {
+                        console.error('Image failed to load:', productForm.imagePreview);
+                        e.target.src = 'https://via.placeholder.com/400x400?text=Image+Not+Found';
+                        e.target.onerror = null; // Prevent infinite loop
+                      }}
                     />
                     {/* Always visible overlay with replace/remove buttons */}
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 rounded-lg flex items-center justify-center">
@@ -188,9 +277,12 @@ const ProductModal = ({
                   
                   <div className="mt-3 text-center">
                     <p className="text-sm text-gray-600">
-                      {productForm.image ? productForm.image.name : 'Current image'}
+                      {productForm.image instanceof File 
+                        ? productForm.image.name 
+                        : 'Current image'
+                      }
                     </p>
-                    {productForm.image && (
+                    {productForm.image instanceof File && (
                       <p className="text-xs text-gray-500">
                         Size: {(productForm.image.size / 1024 / 1024).toFixed(2)} MB
                       </p>
@@ -235,7 +327,7 @@ const ProductModal = ({
             <input
               type="checkbox"
               id="isActive"
-              checked={productForm.isActive}
+              checked={productForm.isActive || false}
               onChange={(e) => handleInputChange('isActive', e.target.checked)}
               className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
             />
