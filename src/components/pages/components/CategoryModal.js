@@ -60,61 +60,57 @@ const CategoryModal = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Category Image
             </label>
-            <div className="flex items-center space-x-4">
-              {(form.imageUrl || form.display_picture) && (
-                <div className="flex-shrink-0">
-                  <img
-                    src={form.imageUrl || form.display_picture}
-                    alt="Category preview"
-                    className="w-16 h-16 object-cover rounded-lg border border-gray-300"
-                  />
-                </div>
-              )}
-              <div className="flex-1">
-                <div className="flex flex-col space-y-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        // Create a preview URL for the selected image
-                        const imageUrl = URL.createObjectURL(file);
-                        onFieldChange('imageFile', file);
-                        onFieldChange('imageUrl', imageUrl);
-                        onFieldChange('hasNewImage', true);
-                      }
-                    }}
-                    className="hidden"
-                    id="categoryImage"
-                  />
-                  <label
-                    htmlFor="categoryImage"
-                    className="cursor-pointer inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    {form.imageUrl || form.display_picture ? 'Change Image' : 'Choose Image'}
-                  </label>
-                  {(form.imageUrl || form.display_picture) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onFieldChange('imageFile', null);
-                        onFieldChange('imageUrl', '');
-                        onFieldChange('display_picture', null);
-                        onFieldChange('removeImage', true);
-                        onFieldChange('hasNewImage', false);
-                      }}
-                      className="text-sm text-red-600 hover:text-red-800"
-                    >
-                      Remove Image
-                    </button>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Upload an image for this category (optional)
-                </p>
+            {(form.imageUrl || form.display_picture) && (
+              <div className="mb-4">
+                <img
+                  src={form.imageUrl || form.display_picture}
+                  alt="Category preview"
+                  className="w-full h-auto max-h-48 object-contain rounded-lg border border-gray-300 shadow-sm bg-gray-50"
+                />
               </div>
+            )}
+            <div className="flex flex-col space-y-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    // Create a preview URL for the selected image
+                    const imageUrl = URL.createObjectURL(file);
+                    onFieldChange('imageFile', file);
+                    onFieldChange('imageUrl', imageUrl);
+                    onFieldChange('hasNewImage', true);
+                  }
+                }}
+                className="hidden"
+                id="categoryImage"
+              />
+              <label
+                htmlFor="categoryImage"
+                className="cursor-pointer inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {form.imageUrl || form.display_picture ? 'Change Image' : 'Choose Image'}
+              </label>
+              {(form.imageUrl || form.display_picture) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onFieldChange('imageFile', null);
+                    onFieldChange('imageUrl', '');
+                    onFieldChange('display_picture', null);
+                    onFieldChange('removeImage', true);
+                    onFieldChange('hasNewImage', false);
+                  }}
+                  className="text-sm text-red-600 hover:text-red-800 text-center"
+                >
+                  Remove Image
+                </button>
+              )}
+              <p className="text-xs text-gray-500 text-center">
+                Upload an image for this category (optional)
+              </p>
             </div>
           </div>
 
