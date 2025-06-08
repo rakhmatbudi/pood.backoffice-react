@@ -1,8 +1,6 @@
-// src/components/pages/ProductsPage.js - Fixed to use real API data
+// src/components/pages/ProductsPage.js - Clean version without debug info
 import React, { useState } from 'react';
 import { useProducts } from '../../hooks/useProducts';
-// Remove useCategories since we'll get categories from useProducts
-// import { useCategories } from '../../hooks/useCategories'; 
 import { useProductFilters } from './hooks/useProductFilters';
 import { useProductForm } from './hooks/useProductForm';
 import { VALIDATION_MESSAGES } from '../../utils/constants';
@@ -19,10 +17,10 @@ import ErrorMessage from '../common/ErrorMessage';
 const ProductsPage = () => {
   const [showStats, setShowStats] = useState(false);
 
-  // Use real API data - remove the 'true' parameter to stop using mock data
+  // Use real API data
   const {
     products,
-    categories, // Get categories from useProducts instead of useCategories
+    categories,
     loading,
     categoriesLoading,
     error,
@@ -32,19 +30,10 @@ const ProductsPage = () => {
     createProduct,
     updateProduct,
     deleteProduct,
-    // Add API helpers if using separate hooks
     apiRequest,
     createApiUrl,
-    saveProduct // If you have this function
-  } = useProducts(); // Remove 'true' parameter - use real API data
-
-  // Remove this line since we're getting categories from useProducts:
-  // const { categories } = useCategories(true); 
-
-  // Debug logging to see what we're getting
-  console.log('🔍 ProductsPage - categories from useProducts:', categories);
-  console.log('🔍 ProductsPage - categories length:', categories.length);
-  console.log('🔍 ProductsPage - categoriesLoading:', categoriesLoading);
+    saveProduct
+  } = useProducts();
 
   const {
     searchTerm,
@@ -78,7 +67,7 @@ const ProductsPage = () => {
     handleClearImage,
     validateForm,
     prepareProductData,
-    prepareProductDataWithImage, // If using the enhanced version
+    prepareProductDataWithImage,
     closeModal
   } = useProductForm(categories);
 
@@ -104,12 +93,10 @@ const ProductsPage = () => {
     try {
       let result;
       
-      // If you have the enhanced version with image upload
       if (prepareProductDataWithImage && saveProduct) {
         const productData = await prepareProductDataWithImage(apiRequest, createApiUrl);
         result = await saveProduct(productData, !!editingProduct, editingProduct?.id);
       } else {
-        // Fallback to original method
         const productData = prepareProductData();
         
         if (editingProduct) {
@@ -140,7 +127,6 @@ const ProductsPage = () => {
     setShowStats(!showStats);
   };
 
-  // Show loading if either products or categories are loading
   if (loading || categoriesLoading) {
     return <LoadingSpinner message="Loading products and categories..." />;
   }
@@ -157,19 +143,6 @@ const ProductsPage = () => {
 
   return (
     <div>
-      {/* Debug info - remove this later */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-          <h4 className="font-semibold text-yellow-800 mb-2">Debug Info:</h4>
-          <p className="text-sm text-yellow-700">
-            Products: {products.length} | Categories: {categories.length} | Categories Loading: {categoriesLoading ? 'Yes' : 'No'}
-          </p>
-          <p className="text-xs text-yellow-600 mt-1">
-            Categories: {categories.map(c => c.name).join(', ')}
-          </p>
-        </div>
-      )}
-
       {/* Header */}
       <ProductHeader
         totalCount={totalCount}

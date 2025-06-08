@@ -1,4 +1,4 @@
-// src/components/pages/components/ProductModal.js - Fixed to show all categories
+// src/components/pages/components/ProductModal.js - Clean version without debug info
 import React, { useRef } from 'react';
 import { X, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
 
@@ -64,12 +64,6 @@ const ProductModal = ({
     .filter(cat => cat.isActive)
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  // Debug logging
-  console.log('🔍 ProductModal - All categories:', categories);
-  console.log('🔍 ProductModal - Active categories:', activeCategories);
-  console.log('🔍 ProductModal - Categories count:', categories.length);
-  console.log('🔍 ProductModal - Active count:', activeCategories.length);
-
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -112,11 +106,6 @@ const ProductModal = ({
               Category *
             </label>
             
-            {/* Debug info */}
-            <div className="text-xs text-gray-500 mb-2">
-              Found {categories.length} total categories, {activeCategories.length} active
-            </div>
-            
             {activeCategories.length > 0 ? (
               <select
                 value={productForm.category || ''}
@@ -127,40 +116,13 @@ const ProductModal = ({
                 <option value="">Select a category</option>
                 {activeCategories.map(category => (
                   <option key={category.id} value={category.id}>
-                    {category.name} {category.menu_category_group && `(${category.menu_category_group})`}
+                    {category.name}
                   </option>
                 ))}
               </select>
             ) : (
               <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
                 {categories.length === 0 ? 'Loading categories...' : 'No active categories found'}
-              </div>
-            )}
-
-            {/* Show selected category info */}
-            {productForm.category && (
-              <div className="mt-2 text-sm text-gray-600">
-                {(() => {
-                  const selectedCategory = categories.find(cat => cat.id == productForm.category);
-                  if (selectedCategory) {
-                    return (
-                      <div className="bg-gray-50 p-2 rounded border">
-                        <div className="flex items-center">
-                          <span className="font-medium">{selectedCategory.name}</span>
-                          {selectedCategory.menu_category_group && (
-                            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                              {selectedCategory.menu_category_group}
-                            </span>
-                          )}
-                        </div>
-                        {selectedCategory.description && (
-                          <p className="mt-1 text-xs text-gray-500">{selectedCategory.description}</p>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
               </div>
             )}
           </div>
