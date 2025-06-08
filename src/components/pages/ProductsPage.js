@@ -1,5 +1,5 @@
 // src/components/pages/ProductsPage.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Plus, Edit2, Trash2, Package, RefreshCw, AlertCircle, Eye, EyeOff, 
   Search, BarChart3, Filter, Image, DollarSign, Tag,
@@ -33,10 +33,25 @@ const ProductsPage = () => {
     price: '',
     description: '',
     stock: '',
-    image: null, // Changed from string to File object
-    imagePreview: '', // For showing preview
+    image: null,
+    imagePreview: '',
     isActive: true
   });
+
+  // Create stable callback functions to prevent re-renders
+  const updateProductForm = useCallback((updates) => {
+    setProductForm(prev => ({
+      ...prev,
+      ...updates
+    }));
+  }, []);
+
+  const handleFormFieldChange = useCallback((field, value) => {
+    setProductForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
 
   // Fetch products using the service
   const fetchProducts = async () => {
@@ -87,7 +102,7 @@ const ProductsPage = () => {
   };
 
   // Handle add product
-  const handleAddProduct = () => {
+  const handleAddProduct = useCallback(() => {
     setEditingProduct(null);
     setProductForm({
       name: '',
@@ -100,30 +115,34 @@ const ProductsPage = () => {
       isActive: true
     });
     setShowProductModal(true);
-  };
+  }, [categories]);
 
   // Handle edit product - convert API structure to form structure
-  const handleEditProduct = (product) => {
+  const handleEditProduct = useCallback((product) => {
     try {
       console.log('Editing product:', product);
       
       setEditingProduct(product);
-      setProductForm({
+      
+      // Create new form object to prevent reference issues
+      const newFormData = {
         name: product.name || '',
         category: product.category?.id?.toString() || product.categoryId?.toString() || '',
         price: product.price?.toString() || '0',
         description: product.description || '',
-        stock: '50', // Default stock since API doesn't provide this
-        image: null, // Reset file input
-        imagePreview: product.imagePath || '', // Show current image
+        stock: '50',
+        image: null,
+        imagePreview: product.imagePath || '',
         isActive: product.isActive ?? true
-      });
+      };
+      
+      setProductForm(newFormData);
       setShowProductModal(true);
     } catch (error) {
       console.error('Error in handleEditProduct:', error);
       alert('Error opening product for editing. Please try again.');
     }
-  };
+  }, []);
 
   // Handle product deletion
   const handleDeleteProduct = async (productId) => {
@@ -137,7 +156,7 @@ const ProductsPage = () => {
       if (result.success) {
         setProducts(prev => prev.filter(product => product.id !== productId));
         setTotalCount(prev => prev - 1);
-        fetchStats(); // Refresh stats
+        fetchStats();
         console.log('Product deleted successfully');
       } else {
         setError(result.error);
@@ -158,7 +177,6 @@ const ProductsPage = () => {
     try {
       let result;
       
-      // If there's a new image file, use FormData to send to your existing endpoints
       if (productForm.image) {
         const formData = productService.prepareFormData({
           name: productForm.name,
@@ -174,7 +192,6 @@ const ProductsPage = () => {
           result = await productService.createProductWithImage(formData);
         }
       } else {
-        // No new image, use regular JSON data
         const productData = {
           name: productForm.name,
           description: productForm.description,
@@ -193,8 +210,8 @@ const ProductsPage = () => {
 
       if (result.success) {
         setShowProductModal(false);
-        fetchProducts(); // Refresh the list
-        fetchStats(); // Refresh stats
+        fetchProducts();
+        fetchStats();
       } else {
         alert(result.error || 'Failed to save product');
       }
@@ -204,24 +221,21 @@ const ProductsPage = () => {
     }
   };
 
-  // Handle file selection
-  const handleImageChange = (file) => {
+  // Handle file selection with useCallback to prevent re-renders
+  const handleImageChange = useCallback((file) => {
     if (file) {
-      // Validate file type
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
         alert('Please select a valid image file (JPEG, PNG, or WebP)');
         return;
       }
 
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+      const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
         alert('Image file must be less than 5MB');
         return;
       }
 
-      // Create preview URL
       const previewUrl = URL.createObjectURL(file);
       
       setProductForm(prev => ({
@@ -230,11 +244,10 @@ const ProductsPage = () => {
         imagePreview: previewUrl
       }));
     }
-  };
+  }, []);
 
-  // Clear image selection
-  const handleClearImage = () => {
-    // Revoke the object URL to prevent memory leaks
+  // Clear image selection with useCallback
+  const handleClearImage = useCallback(() => {
     if (productForm.imagePreview && productForm.imagePreview.startsWith('blob:')) {
       URL.revokeObjectURL(productForm.imagePreview);
     }
@@ -244,16 +257,16 @@ const ProductsPage = () => {
       image: null,
       imagePreview: ''
     }));
-  };
+  }, [productForm.imagePreview]);
 
-  // Filter and sort products
-  const getFilteredAndSortedProducts = () => {
-    let filteredProducts = [...products];
+  // Memoize filtered products to prevent unnecessary re-calculations
+  const filteredProducts = React.useMemo(() => {
+    let filtered = [...products];
 
     // Apply search filter
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
-      filteredProducts = filteredProducts.filter(product =>
+      filtered = filtered.filter(product =>
         product.name.toLowerCase().includes(searchLower) ||
         (product.description && product.description.toLowerCase().includes(searchLower)) ||
         (product.category && product.category.name.toLowerCase().includes(searchLower))
@@ -262,14 +275,14 @@ const ProductsPage = () => {
 
     // Apply category filter
     if (selectedCategory !== 'all') {
-      filteredProducts = filteredProducts.filter(product =>
+      filtered = filtered.filter(product =>
         product.category && product.category.id.toString() === selectedCategory
       );
     }
 
     // Apply status filter
     if (statusFilter !== 'all') {
-      filteredProducts = filteredProducts.filter(product =>
+      filtered = filtered.filter(product =>
         statusFilter === 'active' ? product.isActive : !product.isActive
       );
     }
@@ -278,22 +291,22 @@ const ProductsPage = () => {
     if (priceFilter !== 'all') {
       switch (priceFilter) {
         case 'under25k':
-          filteredProducts = filteredProducts.filter(p => p.price < 25000);
+          filtered = filtered.filter(p => p.price < 25000);
           break;
         case '25k-50k':
-          filteredProducts = filteredProducts.filter(p => p.price >= 25000 && p.price < 50000);
+          filtered = filtered.filter(p => p.price >= 25000 && p.price < 50000);
           break;
         case '50k-100k':
-          filteredProducts = filteredProducts.filter(p => p.price >= 50000 && p.price < 100000);
+          filtered = filtered.filter(p => p.price >= 50000 && p.price < 100000);
           break;
         case 'over100k':
-          filteredProducts = filteredProducts.filter(p => p.price >= 100000);
+          filtered = filtered.filter(p => p.price >= 100000);
           break;
       }
     }
 
     // Apply sorting
-    filteredProducts.sort((a, b) => {
+    filtered.sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
 
@@ -315,8 +328,8 @@ const ProductsPage = () => {
       }
     });
 
-    return filteredProducts;
-  };
+    return filtered;
+  }, [products, searchTerm, selectedCategory, statusFilter, priceFilter, sortBy, sortOrder]);
 
   // Format price for display
   const formatPrice = (price) => {
@@ -359,8 +372,6 @@ const ProductsPage = () => {
       }
     };
   }, [productForm.imagePreview]);
-
-  const filteredProducts = getFilteredAndSortedProducts();
 
   if (loading) {
     return (
@@ -828,6 +839,8 @@ const ProductsPage = () => {
           editingProduct={editingProduct}
           productForm={productForm}
           setProductForm={setProductForm}
+          updateProductForm={updateProductForm}
+          handleFormFieldChange={handleFormFieldChange}
           setShowModal={setShowProductModal}
           handleSaveProduct={handleSaveProduct}
           categories={categories}

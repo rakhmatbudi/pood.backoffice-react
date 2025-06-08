@@ -1,5 +1,5 @@
 // src/components/pages/CategoriesPage.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Tag, RefreshCw, AlertCircle, Eye, EyeOff, Search, BarChart3, ChevronUp, ChevronDown, Save, X } from 'lucide-react';
 import categoryService from '../../services/categoryService';
 
@@ -30,6 +30,21 @@ const CategoriesPage = () => {
     color: 'blue',
     isActive: true
   });
+
+  // Create stable callback functions to prevent re-renders
+  const updateCategoryForm = useCallback((updates) => {
+    setCategoryForm(prev => ({
+      ...prev,
+      ...updates
+    }));
+  }, []);
+
+  const handleFormFieldChange = useCallback((field, value) => {
+    setCategoryForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
 
   // Fetch categories using the centralized service
   const fetchCategories = async () => {
@@ -65,31 +80,33 @@ const CategoriesPage = () => {
     }
   };
 
-  // Handle adding new category
-  const handleAddCategory = () => {
+  // Handle adding new category with useCallback
+  const handleAddCategory = useCallback(() => {
     setEditingCategory(null);
-    setCategoryForm({
+    const newFormData = {
       name: '',
       description: '',
       type: 'food',
       color: 'blue',
       isActive: true
-    });
+    };
+    setCategoryForm(newFormData);
     setShowCategoryModal(true);
-  };
+  }, []);
 
-  // Handle editing existing category
-  const handleEditCategory = (category) => {
+  // Handle editing existing category with useCallback
+  const handleEditCategory = useCallback((category) => {
     setEditingCategory(category);
-    setCategoryForm({
+    const newFormData = {
       name: category.name || '',
       description: category.description || '',
       type: category.type || 'food',
       color: category.color || 'blue',
       isActive: category.isActive !== undefined ? category.isActive : true
-    });
+    };
+    setCategoryForm(newFormData);
     setShowCategoryModal(true);
-  };
+  }, []);
 
   // Handle saving category (add or edit)
   const handleSaveCategory = async () => {
@@ -188,17 +205,17 @@ const CategoriesPage = () => {
     }
   };
 
-  // Filter and sort categories
-  const getFilteredAndSortedCategories = () => {
-    let filteredCategories = [...categories];
+  // Memoize filtered categories to prevent unnecessary re-calculations
+  const filteredCategories = React.useMemo(() => {
+    let filtered = [...categories];
 
     // Apply type filter
     if (filterType !== 'all') {
-      filteredCategories = filteredCategories.filter(cat => cat.type === filterType);
+      filtered = filtered.filter(cat => cat.type === filterType);
     }
 
     // Apply sorting
-    filteredCategories.sort((a, b) => {
+    filtered.sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
 
@@ -224,8 +241,8 @@ const CategoriesPage = () => {
       }
     });
 
-    return filteredCategories;
-  };
+    return filtered;
+  }, [categories, filterType, sortBy, sortOrder]);
 
   // Get category color classes
   const getCategoryColorClasses = (color) => {
@@ -278,8 +295,8 @@ const CategoriesPage = () => {
     );
   };
 
-  // Delete confirmation modal
-  const DeleteConfirmModal = () => {
+  // Delete confirmation modal with useCallback
+  const DeleteConfirmModal = useCallback(() => {
     if (!deleteConfirm) return null;
 
     return (
@@ -313,10 +330,10 @@ const CategoriesPage = () => {
         </div>
       </div>
     );
-  };
+  }, [deleteConfirm]);
 
-  // Category modal component
-  const CategoryModal = () => {
+  // Category modal component with useCallback and stable handlers
+  const CategoryModal = useCallback(() => {
     if (!showCategoryModal) return null;
 
     return (
@@ -342,7 +359,7 @@ const CategoriesPage = () => {
               <input
                 type="text"
                 value={categoryForm.name}
-                onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                onChange={(e) => handleFormFieldChange('name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="Enter category name"
               />
@@ -354,7 +371,7 @@ const CategoriesPage = () => {
               </label>
               <textarea
                 value={categoryForm.description}
-                onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                onChange={(e) => handleFormFieldChange('description', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 placeholder="Enter description (optional)"
                 rows="3"
@@ -367,7 +384,7 @@ const CategoriesPage = () => {
               </label>
               <select
                 value={categoryForm.type}
-                onChange={(e) => setCategoryForm({ ...categoryForm, type: e.target.value })}
+                onChange={(e) => handleFormFieldChange('type', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               >
                 <option value="food">Food</option>
@@ -384,7 +401,7 @@ const CategoriesPage = () => {
               </label>
               <select
                 value={categoryForm.color}
-                onChange={(e) => setCategoryForm({ ...categoryForm, color: e.target.value })}
+                onChange={(e) => handleFormFieldChange('color', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               >
                 <option value="blue">Blue</option>
@@ -405,7 +422,7 @@ const CategoriesPage = () => {
                 type="checkbox"
                 id="isActive"
                 checked={categoryForm.isActive}
-                onChange={(e) => setCategoryForm({ ...categoryForm, isActive: e.target.checked })}
+                onChange={(e) => handleFormFieldChange('isActive', e.target.checked)}
                 className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
               />
               <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
@@ -445,14 +462,12 @@ const CategoriesPage = () => {
         </div>
       </div>
     );
-  };
+  }, [showCategoryModal, editingCategory, categoryForm, saving, handleFormFieldChange]);
 
   useEffect(() => {
     fetchCategories();
     fetchStats();
   }, []);
-
-  const filteredCategories = getFilteredAndSortedCategories();
 
   if (loading) {
     return (
