@@ -1,8 +1,19 @@
 // src/components/pages/components/CategoryFilters.js
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Search } from 'lucide-react';
 
-const CategoryFilters = ({ searchTerm, filterType, onSearch, onFilterChange }) => {
+const CategoryFilters = ({ searchTerm, filterType, onSearch, onFilterChange, categories = [] }) => {
+  // Generate unique types from the transformed categories data (which now has 'type' field)
+  const availableTypes = useMemo(() => {
+    const uniqueTypes = [...new Set(categories.map(cat => cat.type).filter(Boolean))];
+    return uniqueTypes.sort();
+  }, [categories]);
+
+  // Dynamic display name - capitalize first letter
+  const getTypeDisplayName = (type) => {
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
       <div className="flex flex-col sm:flex-row gap-4">
@@ -25,11 +36,11 @@ const CategoryFilters = ({ searchTerm, filterType, onSearch, onFilterChange }) =
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
           >
             <option value="all">All Types</option>
-            <option value="food">Food</option>
-            <option value="drink">Drinks</option>
-            <option value="package">Packages</option>
-            <option value="extra">Extras</option>
-            <option value="other">Other</option>
+            {availableTypes.map(type => (
+              <option key={type} value={type}>
+                {getTypeDisplayName(type)}
+              </option>
+            ))}
           </select>
         </div>
       </div>

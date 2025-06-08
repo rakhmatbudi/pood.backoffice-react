@@ -80,6 +80,7 @@ const CategoriesPage = () => {
       <CategoryFilters
         searchTerm={searchTerm}
         filterType={filterType}
+        categories={categories}
         onSearch={handleSearch}
         onFilterChange={setFilterType}
       />
@@ -107,6 +108,7 @@ const CategoriesPage = () => {
         editing={editingCategory}
         form={categoryForm}
         saving={saving}
+        categories={categories}
         onClose={() => setShowCategoryModal(false)}
         onSave={handleSaveCategory}
         onFieldChange={handleFormFieldChange}
