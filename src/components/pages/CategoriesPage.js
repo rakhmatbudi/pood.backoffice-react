@@ -1,30 +1,35 @@
 // src/components/pages/CategoriesPage.js
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Tag, RefreshCw, AlertCircle, Eye, EyeOff, Search, BarChart3, ChevronUp, ChevronDown } from 'lucide-react';
-import CategoryModal from '../modals/CategoryModal';
+import { Plus, Edit2, Tag, RefreshCw, AlertCircle, Eye, EyeOff, Search, BarChart3, ChevronUp, ChevronDown, Save, X } from 'lucide-react';
 import categoryService from '../../services/categoryService';
 
-const CategoriesPage = ({
-  showCategoryModal,
-  editingCategory,
-  categoryForm,
-  setShowCategoryModal,
-  setCategoryForm,
-  handleAddCategory,
-  handleEditCategory,
-  handleDeleteCategory,
-  handleSaveCategory
-}) => {
+const CategoriesPage = () => {
+  // Categories state
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [totalCount, setTotalCount] = useState(0);
+  
+  // UI state
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState(null);
   const [sortBy, setSortBy] = useState('id');
   const [sortOrder, setSortOrder] = useState('asc');
+  
+  // Modal state
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    description: '',
+    type: 'food',
+    color: 'blue',
+    isActive: true
+  });
 
   // Fetch categories using the centralized service
   const fetchCategories = async () => {
@@ -37,13 +42,12 @@ const CategoriesPage = ({
       if (result.success) {
         const transformedCategories = categoryService.transformCategoriesData(result.data);
         setCategories(transformedCategories);
-        setTotalCount(result.totalCount);
+        setTotalCount(result.totalCount || transformedCategories.length);
       } else {
-        setError(result.error);
+        setError(result.error || 'Failed to fetch categories');
       }
     } catch (err) {
       setError(err.message);
-      console.error('Error in fetchCategories:', err);
     } finally {
       setLoading(false);
     }
@@ -61,15 +65,110 @@ const CategoriesPage = ({
     }
   };
 
+  // Handle adding new category
+  const handleAddCategory = () => {
+    setEditingCategory(null);
+    setCategoryForm({
+      name: '',
+      description: '',
+      type: 'food',
+      color: 'blue',
+      isActive: true
+    });
+    setShowCategoryModal(true);
+  };
+
+  // Handle editing existing category
+  const handleEditCategory = (category) => {
+    setEditingCategory(category);
+    setCategoryForm({
+      name: category.name || '',
+      description: category.description || '',
+      type: category.type || 'food',
+      color: category.color || 'blue',
+      isActive: category.isActive !== undefined ? category.isActive : true
+    });
+    setShowCategoryModal(true);
+  };
+
+  // Handle saving category (add or edit)
+  const handleSaveCategory = async () => {
+    try {
+      setSaving(true);
+
+      // Validate form
+      if (!categoryForm.name.trim()) {
+        alert('Category name is required');
+        return;
+      }
+
+      let result;
+      if (editingCategory) {
+        // Update existing category
+        result = await categoryService.updateCategory(editingCategory.id, categoryForm);
+      } else {
+        // Create new category
+        result = await categoryService.createCategory(categoryForm);
+      }
+
+      if (result.success) {
+        // Close modal and reset form
+        setShowCategoryModal(false);
+        setEditingCategory(null);
+        setCategoryForm({
+          name: '',
+          description: '',
+          type: 'food',
+          color: 'blue',
+          isActive: true
+        });
+
+        // Refresh the categories list
+        await fetchCategories();
+        
+        // Refresh stats if visible
+        if (showStats) {
+          await fetchStats();
+        }
+      } else {
+        alert(`Failed to save category: ${result.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert(`Error saving category: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle deleting category
+  const handleDeleteCategory = async (categoryId) => {
+    try {
+      const result = await categoryService.deleteCategory(categoryId);
+      
+      if (result.success) {
+        await fetchCategories();
+        if (showStats) {
+          await fetchStats();
+        }
+        setDeleteConfirm(null);
+      } else {
+        alert(`Failed to delete category: ${result.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert(`Error deleting category: ${err.message}`);
+    }
+  };
+
   // Handle search
   const handleSearch = async (term) => {
     setSearchTerm(term);
+    
     if (term.trim()) {
       try {
         const result = await categoryService.searchCategories(term);
         if (result.success) {
           setCategories(result.data);
-          setTotalCount(result.totalCount);
+          setTotalCount(result.totalCount || result.data.length);
         }
       } catch (err) {
         console.error('Error searching categories:', err);
@@ -176,6 +275,175 @@ const CategoriesPage = ({
           </div>
         </div>
       </th>
+    );
+  };
+
+  // Delete confirmation modal
+  const DeleteConfirmModal = () => {
+    if (!deleteConfirm) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-sm w-full">
+          <div className="p-6">
+            <div className="flex items-center mb-4">
+              <div className="bg-red-100 p-2 rounded-full mr-3">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800">Delete Category</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete the category "{deleteConfirm.name}"? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteCategory(deleteConfirm.id)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700"
+              >
+                Delete Category
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Category modal component
+  const CategoryModal = () => {
+    if (!showCategoryModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-screen overflow-y-auto">
+          <div className="flex items-center justify-between p-6 border-b">
+            <h3 className="text-lg font-semibold text-gray-800">
+              {editingCategory ? 'Edit Category' : 'Add New Category'}
+            </h3>
+            <button
+              onClick={() => setShowCategoryModal(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category Name *
+              </label>
+              <input
+                type="text"
+                value={categoryForm.name}
+                onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="Enter category name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description
+              </label>
+              <textarea
+                value={categoryForm.description}
+                onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="Enter description (optional)"
+                rows="3"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Type
+              </label>
+              <select
+                value={categoryForm.type}
+                onChange={(e) => setCategoryForm({ ...categoryForm, type: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              >
+                <option value="food">Food</option>
+                <option value="drink">Drink</option>
+                <option value="package">Package</option>
+                <option value="extra">Extra</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Color
+              </label>
+              <select
+                value={categoryForm.color}
+                onChange={(e) => setCategoryForm({ ...categoryForm, color: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              >
+                <option value="blue">Blue</option>
+                <option value="green">Green</option>
+                <option value="purple">Purple</option>
+                <option value="orange">Orange</option>
+                <option value="pink">Pink</option>
+                <option value="indigo">Indigo</option>
+                <option value="teal">Teal</option>
+                <option value="red">Red</option>
+                <option value="yellow">Yellow</option>
+                <option value="gray">Gray</option>
+              </select>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={categoryForm.isActive}
+                onChange={(e) => setCategoryForm({ ...categoryForm, isActive: e.target.checked })}
+                className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+              />
+              <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
+                Display this category
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 p-6 border-t bg-gray-50">
+            <button
+              type="button"
+              onClick={() => setShowCategoryModal(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveCategory}
+              disabled={saving || !categoryForm.name.trim()}
+              className="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              {saving ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  {editingCategory ? 'Update' : 'Create'} Category
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -395,14 +663,26 @@ const CategoriesPage = ({
                       </span>
                     </td>
                     <td className="py-4 px-4 sm:px-6">
-                      <button
-                        onClick={() => handleEditCategory(category)}
-                        className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded transition-colors"
-                        title="Edit category"
-                      >
-                        <Edit2 size={14} className="sm:hidden" />
-                        <Edit2 size={16} className="hidden sm:block" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleEditCategory(category)}
+                          className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded transition-colors"
+                          title="Edit category"
+                          disabled={saving}
+                        >
+                          <Edit2 size={14} className="sm:hidden" />
+                          <Edit2 size={16} className="hidden sm:block" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(category)}
+                          className="text-red-600 hover:text-red-800 p-1 hover:bg-red-50 rounded transition-colors"
+                          title="Delete category"
+                          disabled={saving}
+                        >
+                          <AlertCircle size={14} className="sm:hidden" />
+                          <AlertCircle size={16} className="hidden sm:block" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -452,15 +732,10 @@ const CategoriesPage = ({
       </div>
 
       {/* Category Modal */}
-      {showCategoryModal && (
-        <CategoryModal
-          editingCategory={editingCategory}
-          categoryForm={categoryForm}
-          setCategoryForm={setCategoryForm}
-          setShowCategoryModal={setShowCategoryModal}
-          handleSaveCategory={handleSaveCategory}
-        />
-      )}
+      <CategoryModal />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal />
     </div>
   );
 };
