@@ -1,4 +1,4 @@
-// src/components/pages/hooks/useProductForm.js
+// src/components/pages/hooks/useProductForm.js - Fixed for your API structure
 import { useState, useCallback, useEffect } from 'react';
 
 export const useProductForm = (categories = []) => {
@@ -6,7 +6,7 @@ export const useProductForm = (categories = []) => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [productForm, setProductForm] = useState({
     name: '',
-    category: '', // Add category field
+    category: '',
     price: null,
     description: '',
     stock: null,
@@ -136,8 +136,20 @@ export const useProductForm = (categories = []) => {
 
   // Validate form
   const validateForm = useCallback(() => {
-    if (!productForm.name || productForm.price === null || productForm.price === undefined || !productForm.description) {
-      alert('Please fill in all required fields');
+    console.log('🔍 Validating form:', productForm);
+    
+    if (!productForm.name || productForm.name.trim() === '') {
+      alert('Please enter a product name');
+      return false;
+    }
+    
+    if (productForm.price === null || productForm.price === undefined || productForm.price <= 0) {
+      alert('Please enter a valid price');
+      return false;
+    }
+    
+    if (!productForm.description || productForm.description.trim() === '') {
+      alert('Please enter a product description');
       return false;
     }
     
@@ -146,81 +158,140 @@ export const useProductForm = (categories = []) => {
       return false;
     }
     
+    console.log('✅ Form validation passed');
     return true;
   }, [productForm]);
 
-  // Prepare product data for API
-  const prepareProductData = useCallback(() => {
-    const data = {
-      name: productForm.name,
-      description: productForm.description,
-      price: productForm.price,
-      is_active: productForm.isActive, // Use snake_case for API
-      category: productForm.category, // Category ID
-      image_path: productForm.imagePreview && !productForm.image ? productForm.imagePreview : '',
-    };
-    
-    // Only include stock if it has a value
-    if (productForm.stock !== null && productForm.stock !== undefined) {
-      data.stock = productForm.stock;
-    }
-    
-    console.log('Prepared product data for API:', data);
-    return data;
-  }, [productForm]);
-
-  // Helper function to upload image (you'll need to implement this based on your API)
-  const uploadImage = async (imageFile, apiRequest, createApiUrl) => {
-    if (!imageFile) return null;
-    
-    const formData = new FormData();
-    formData.append('image', imageFile);
-    
-    try {
-      // Update this URL to match your actual image upload endpoint
-      const uploadUrl = createApiUrl('/upload/image');
-      const response = await fetch(uploadUrl, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      return result.image_path || result.url || result.path || result.data?.url;
-    } catch (err) {
-      console.error('Error uploading image:', err);
-      throw new Error(`Failed to upload image: ${err.message}`);
-    }
+  // Convert image to base64 for API
+  const convertImageToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
   };
 
-  // Enhanced prepare data function that handles image upload
-  const prepareProductDataWithImage = useCallback(async (apiRequest, createApiUrl) => {
-    let imagePath = '';
+  // Prepare product data for API (with image as base64 or FormData)
+  const prepareProductData = useCallback(async () => {
+    console.log('📦 Preparing product data for API...');
+    console.log('📝 Current form state:', productForm);
     
-    // Upload new image if one was selected
+    try {
+      // Basic data structure
+      const data = {
+        name: productForm.name.trim(),
+        description: productForm.description.trim(),
+        price: parseFloat(productForm.price),
+        is_active: productForm.isActive,
+        category: parseInt(productForm.category),
+        stock: productForm.stock ? parseInt(productForm.stock) : 0,
+      };
+
+      // Handle image if present
+      if (productForm.image instanceof File) {
+        console.log('📸 Converting image to base64...');
+        try {
+          const base64Image = await convertImageToBase64(productForm.image);
+          data.image = base64Image; // Send as base64
+          // OR if your API expects just the file name:
+          // data.image_name = productForm.image.name;
+        } catch (err) {
+          console.error('❌ Image conversion failed:', err);
+          // Continue without image
+        }
+      } else if (productForm.imagePreview && !productForm.imagePreview.startsWith('blob:')) {
+        // Keep existing image path for edits
+        data.image_path = productForm.imagePreview;
+      }
+      
+      console.log('✅ Final product data prepared:', data);
+      return data;
+    } catch (err) {
+      console.error('❌ Error preparing product data:', err);
+      throw err;
+    }
+  }, [productForm]);
+
+  // Prepare FormData for multipart upload (alternative approach)
+  const prepareFormData = useCallback(() => {
+    console.log('📦 Preparing FormData for API...');
+    
+    const formData = new FormData();
+    
+    // Add text fields
+    formData.append('name', productForm.name.trim());
+    formData.append('description', productForm.description.trim());
+    formData.append('price', parseFloat(productForm.price));
+    formData.append('is_active', productForm.isActive);
+    formData.append('category', parseInt(productForm.category));
+    formData.append('stock', productForm.stock ? parseInt(productForm.stock) : 0);
+    
+    // Add image file if present
     if (productForm.image instanceof File) {
-      imagePath = await uploadImage(productForm.image, apiRequest, createApiUrl);
-    } else if (productForm.imagePreview && !productForm.imagePreview.startsWith('blob:')) {
-      // Keep existing image path for edits
-      imagePath = productForm.imagePreview;
+      formData.append('image', productForm.image);
     }
     
-    const data = {
-      name: productForm.name,
-      description: productForm.description,
-      price: productForm.price,
-      is_active: productForm.isActive,
-      category: productForm.category,
-      image_path: imagePath,
-      stock: productForm.stock || 0,
-    };
-    
-    console.log('Prepared product data with image for API:', data);
-    return data;
+    console.log('✅ FormData prepared');
+    return formData;
   }, [productForm]);
+
+  // API request function that works with your endpoint
+  const saveProductToAPI = useCallback(async (apiRequest, createApiUrl) => {
+    console.log('🔄 Saving product to API...');
+    console.log('✏️ Is editing:', !!editingProduct);
+    
+    try {
+      let url, method, requestData;
+      
+      if (editingProduct) {
+        // Update existing product - PUT to https://api.pood.lol/menu-items/{id}
+        url = `https://api.pood.lol/menu-items/${editingProduct.id}`;
+        method = 'PUT';
+      } else {
+        // Create new product - POST to https://api.pood.lol/menu-items/
+        url = 'https://api.pood.lol/menu-items/';
+        method = 'POST';
+      }
+      
+      console.log(`📤 ${method} request to:`, url);
+      
+      // Try FormData first (for multipart with image)
+      if (productForm.image instanceof File) {
+        console.log('📸 Using FormData for image upload...');
+        requestData = prepareFormData();
+        
+        const response = await fetch(url, {
+          method: method,
+          body: requestData,
+          // Don't set Content-Type for FormData - browser will set it with boundary
+        });
+        
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ API response:', result);
+        return { success: true, data: result };
+      } else {
+        // Use JSON for requests without new images
+        console.log('📝 Using JSON data...');
+        requestData = await prepareProductData();
+        
+        const response = await apiRequest(url, {
+          method: method,
+          body: JSON.stringify(requestData),
+        });
+        
+        console.log('✅ API response:', response);
+        return { success: true, data: response };
+      }
+    } catch (err) {
+      console.error('❌ API request failed:', err);
+      return { success: false, error: err.message };
+    }
+  }, [productForm, editingProduct, prepareProductData, prepareFormData]);
 
   // Close modal
   const closeModal = useCallback(() => {
@@ -256,7 +327,8 @@ export const useProductForm = (categories = []) => {
     handleClearImage,
     validateForm,
     prepareProductData,
-    prepareProductDataWithImage,
+    prepareFormData,
+    saveProductToAPI,
     closeModal
   };
 };

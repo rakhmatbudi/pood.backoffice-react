@@ -67,7 +67,8 @@ const ProductsPage = () => {
     handleClearImage,
     validateForm,
     prepareProductData,
-    prepareProductDataWithImage,
+    prepareFormData,
+    saveProductToAPI, // Add this new function
     closeModal
   } = useProductForm(categories);
 
@@ -86,34 +87,75 @@ const ProductsPage = () => {
 
   // Enhanced save product handler
   const handleSaveProduct = async () => {
+    console.log('🔄 Starting product save...');
+    
     if (!validateForm()) {
+      console.log('❌ Form validation failed');
       return;
     }
 
     try {
       let result;
       
-      if (prepareProductDataWithImage && saveProduct) {
-        const productData = await prepareProductDataWithImage(apiRequest, createApiUrl);
-        result = await saveProduct(productData, !!editingProduct, editingProduct?.id);
-      } else {
-        const productData = prepareProductData();
+      // Method 1: Use the new direct API function
+      if (saveProductToAPI && apiRequest && createApiUrl) {
+        console.log('📤 Using direct API save method...');
+        result = await saveProductToAPI(apiRequest, createApiUrl);
+      }
+      // Method 2: Fallback to existing functions if available
+      else if (prepareProductData && (createProduct || updateProduct)) {
+        console.log('📤 Using fallback save method...');
+        const productData = await prepareProductData();
         
-        if (editingProduct) {
+        if (editingProduct && updateProduct) {
+          console.log('🔄 Updating existing product...');
           result = await updateProduct(editingProduct.id, productData, productForm.image);
-        } else {
+        } else if (!editingProduct && createProduct) {
+          console.log('🆕 Creating new product...');
           result = await createProduct(productData, productForm.image);
+        } else {
+          throw new Error('Missing create/update functions');
         }
       }
+      else {
+        throw new Error('No save method available');
+      }
 
-      if (result.success) {
+      console.log('📥 Save result:', result);
+
+      if (result && result.success) {
+        console.log('🎉 Product saved successfully!');
         closeModal();
+        
+        // Refresh the products list
+        if (fetchProducts) {
+          console.log('🔄 Refreshing products list...');
+          await fetchProducts();
+        }
       } else {
-        alert(result.error || 'Failed to save product');
+        console.log('❌ Save failed:', result);
+        alert(result?.error || 'Failed to save product');
       }
     } catch (err) {
-      console.error('Error saving product:', err);
-      alert('Error saving product. Please try again.');
+      console.error('💥 Error saving product:', err);
+      
+      // More helpful error messages
+      let message = 'Error saving product. ';
+      if (err.message.includes('network') || err.message.includes('fetch')) {
+        message += 'Please check your internet connection.';
+      } else if (err.message.includes('400')) {
+        message += 'Invalid data. Please check all fields.';
+      } else if (err.message.includes('401')) {
+        message += 'Authentication required.';
+      } else if (err.message.includes('403')) {
+        message += 'Permission denied.';
+      } else if (err.message.includes('500')) {
+        message += 'Server error. Please try again later.';
+      } else {
+        message += err.message;
+      }
+      
+      alert(message);
     }
   };
 
