@@ -1,6 +1,8 @@
-// src/components/pages/components/ProductModal.js - Clean version without debug info
+// src/components/pages/components/ProductModal.js - Updated with variants
 import React, { useRef } from 'react';
 import { X, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { useProductVariants } from '../hooks/useProductVariants';
+import ProductVariants from './ProductVariants';
 
 const ProductModal = ({
   editingProduct,
@@ -13,6 +15,17 @@ const ProductModal = ({
   categories = []
 }) => {
   const fileInputRef = useRef(null);
+  
+  // Initialize variants functionality
+  const menuItemId = editingProduct?.id;
+  const variantProps = useProductVariants(menuItemId);
+
+  // Debug logging
+  console.log('ProductModal rendered with:', {
+    editingProduct,
+    menuItemId,
+    hasVariants: variantProps.variants?.length > 0
+  });
 
   const handleInputChange = (field, value) => {
     let processedValue = value;
@@ -69,7 +82,7 @@ const ProductModal = ({
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
       onClick={handleModalClick}
     >
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-xl font-semibold text-gray-800">
@@ -100,48 +113,51 @@ const ProductModal = ({
             />
           </div>
 
-          {/* Category Dropdown */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Category *
-            </label>
-            
-            {activeCategories.length > 0 ? (
-              <select
-                value={productForm.category || ''}
-                onChange={(e) => handleInputChange('category', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                required
-              >
-                <option value="">Select a category</option>
-                {activeCategories.map(category => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
-                {categories.length === 0 ? 'Loading categories...' : 'No active categories found'}
-              </div>
-            )}
-          </div>
+          {/* Two Column Layout for Category and Price */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Category Dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category *
+              </label>
+              
+              {activeCategories.length > 0 ? (
+                <select
+                  value={productForm.category || ''}
+                  onChange={(e) => handleInputChange('category', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select a category</option>
+                  {activeCategories.map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                  {categories.length === 0 ? 'Loading categories...' : 'No active categories found'}
+                </div>
+              )}
+            </div>
 
-          {/* Price */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Price (IDR) *
-            </label>
-            <input
-              type="number"
-              value={productForm.price || ''}
-              onChange={(e) => handleInputChange('price', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              placeholder="Enter price"
-              min="0"
-              step="1000"
-              required
-            />
+            {/* Price */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Price (IDR) *
+              </label>
+              <input
+                type="number"
+                value={productForm.price || ''}
+                onChange={(e) => handleInputChange('price', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="Enter price"
+                min="0"
+                step="1000"
+                required
+              />
+            </div>
           </div>
 
           {/* Description */}
@@ -159,19 +175,36 @@ const ProductModal = ({
             />
           </div>
 
-          {/* Stock */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Stock Quantity
-            </label>
-            <input
-              type="number"
-              value={productForm.stock || ''}
-              onChange={(e) => handleInputChange('stock', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              placeholder="Enter stock quantity"
-              min="0"
-            />
+          {/* Two Column Layout for Stock and Image */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Stock */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Stock Quantity
+              </label>
+              <input
+                type="number"
+                value={productForm.stock || ''}
+                onChange={(e) => handleInputChange('stock', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="Enter stock quantity"
+                min="0"
+              />
+            </div>
+
+            {/* Active Status */}
+            <div className="flex items-center pt-8">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={productForm.isActive || false}
+                onChange={(e) => handleInputChange('isActive', e.target.checked)}
+                className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+              />
+              <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
+                Product is active and visible to customers
+              </label>
+            </div>
           </div>
 
           {/* Image Upload */}
@@ -284,19 +317,15 @@ const ProductModal = ({
             </div>
           </div>
 
-          {/* Active Status */}
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="isActive"
-              checked={productForm.isActive || false}
-              onChange={(e) => handleInputChange('isActive', e.target.checked)}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
-            />
-            <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
-              Product is active and visible to customers
-            </label>
-          </div>
+          {/* Product Variants Section - Only show for existing products */}
+          {menuItemId && (
+            <div className="border-t pt-6">
+              <ProductVariants 
+                menuItemId={menuItemId}
+                {...variantProps}
+              />
+            </div>
+          )}
 
           {/* Form Actions */}
           <div className="flex justify-end space-x-3 pt-6 border-t">

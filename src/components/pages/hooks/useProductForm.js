@@ -1,9 +1,10 @@
-// src/components/pages/hooks/useProductForm.js - Clean production version
+// src/components/pages/hooks/useProductForm.js - Updated with variant support
 import { useState, useCallback, useEffect } from 'react';
 
 export const useProductForm = (categories = []) => {
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [savedProductId, setSavedProductId] = useState(null); // New state for saved product ID
   const [productForm, setProductForm] = useState({
     name: '',
     category: '',
@@ -46,6 +47,7 @@ export const useProductForm = (categories = []) => {
   // Handle add product
   const handleAddProduct = useCallback(() => {
     setEditingProduct(null);
+    setSavedProductId(null); // Reset saved product ID
     
     // Get default category (first active category)
     const defaultCategory = categories.find(c => c.isActive)?.id || categories[0]?.id || '';
@@ -67,6 +69,7 @@ export const useProductForm = (categories = []) => {
   const handleEditProduct = useCallback((product) => {
     try {
       setEditingProduct(product);
+      setSavedProductId(product.id); // Set saved product ID for existing products
       
       // Create new form object to prevent reference issues
       const newFormData = {
@@ -286,6 +289,12 @@ export const useProductForm = (categories = []) => {
         result = { message: responseText };
       }
       
+      // For new products, set the saved product ID and update editingProduct
+      if (!editingProduct && result.id) {
+        setSavedProductId(result.id);
+        setEditingProduct(result); // Set as editing product so variants can be managed
+      }
+      
       return { success: true, data: result };
     } catch (err) {
       return { success: false, error: err.message };
@@ -301,7 +310,13 @@ export const useProductForm = (categories = []) => {
     
     setShowProductModal(false);
     setEditingProduct(null);
+    setSavedProductId(null);
   }, [productForm.imagePreview]);
+
+  // Get current menu item ID (for variants)
+  const getCurrentMenuItemId = useCallback(() => {
+    return editingProduct?.id || savedProductId;
+  }, [editingProduct, savedProductId]);
 
   // Cleanup object URLs on unmount
   useEffect(() => {
@@ -316,6 +331,7 @@ export const useProductForm = (categories = []) => {
     showProductModal,
     setShowProductModal,
     editingProduct,
+    savedProductId,
     productForm,
     setProductForm,
     updateProductForm,
@@ -328,6 +344,7 @@ export const useProductForm = (categories = []) => {
     prepareFormData,
     prepareJSONData,
     saveProductToAPI,
-    closeModal
+    closeModal,
+    getCurrentMenuItemId // New function to get current menu item ID
   };
 };
