@@ -145,6 +145,23 @@ const CategoryModal = ({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category Type *
+              </label>
+              <select
+                value={form.type}
+                onChange={(e) => onFieldChange('type', e.target.value)}
+                className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              >
+                <option value="food">Food</option>
+                <option value="drink">Drink</option>
+                <option value="package">Package/Bundle</option>
+                <option value="extra">Extra/Add-on</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Category Image
               </label>
               {(form.imageUrl || form.display_picture) && (
@@ -200,17 +217,36 @@ const CategoryModal = ({
               </div>
             </div>
 
-            <div className="flex items-center py-2">
-              <input
-                type="checkbox"
-                id="is_displayed"
-                checked={form.is_displayed}
-                onChange={(e) => onFieldChange('is_displayed', e.target.checked)}
-                className="h-5 w-5 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
-              />
-              <label htmlFor="is_displayed" className="ml-3 block text-sm text-gray-700">
-                Display this category
-              </label>
+            {/* Display Options */}
+            <div className="space-y-3">
+              <div className="flex items-center py-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={form.isActive}
+                  onChange={(e) => onFieldChange('isActive', e.target.checked)}
+                  className="h-5 w-5 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+                />
+                <label htmlFor="isActive" className="ml-3 block text-sm text-gray-700">
+                  Display this category
+                </label>
+              </div>
+
+              <div className="flex items-center py-2">
+                <input
+                  type="checkbox"
+                  id="isDisplayForSelfOrder"
+                  checked={form.isDisplayForSelfOrder}
+                  onChange={(e) => onFieldChange('isDisplayForSelfOrder', e.target.checked)}
+                  className="h-5 w-5 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+                />
+                <label htmlFor="isDisplayForSelfOrder" className="ml-3 block text-sm text-gray-700">
+                  Show in self-order kiosk
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 ml-8">
+                When enabled, this category will be visible on self-order kiosks for customers to browse
+              </p>
             </div>
 
             {/* Products Section - Only show when editing */}
@@ -236,19 +272,19 @@ const CategoryModal = ({
                   {/* Product Statistics */}
                   {productStats && (
                     <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-4">
-                      <div className="bg-white p-2 sm:p-3 rounded-lg shadow-sm">
+                      <div className="bg-white p-2 sm:p-3 rounded-lg shadow-sm border">
                         <div className="text-lg sm:text-2xl font-bold text-orange-600">{productStats.total}</div>
                         <div className="text-xs text-gray-600">Total Products</div>
                       </div>
-                      <div className="bg-white p-2 sm:p-3 rounded-lg shadow-sm">
+                      <div className="bg-white p-2 sm:p-3 rounded-lg shadow-sm border">
                         <div className="text-lg sm:text-2xl font-bold text-green-600">{productStats.active}</div>
                         <div className="text-xs text-gray-600">Active Products</div>
                       </div>
-                      <div className="bg-white p-2 sm:p-3 rounded-lg shadow-sm">
+                      <div className="bg-white p-2 sm:p-3 rounded-lg shadow-sm border">
                         <div className="text-lg sm:text-2xl font-bold text-blue-600">{productStats.totalVariants}</div>
                         <div className="text-xs text-gray-600">Total Variants</div>
                       </div>
-                      <div className="bg-white p-2 sm:p-3 rounded-lg shadow-sm">
+                      <div className="bg-white p-2 sm:p-3 rounded-lg shadow-sm border">
                         <div className="text-sm sm:text-lg font-bold text-purple-600">{formatPrice(productStats.averagePrice)}</div>
                         <div className="text-xs text-gray-600">Avg. Price</div>
                       </div>

@@ -30,6 +30,7 @@ export const useCategoriesPage = () => {
     description: '',
     type: 'food',
     isActive: true, // CHANGED: was is_displayed
+    isDisplayForSelfOrder: true, // ADDED: New field
     imageFile: null,
     imageUrl: '',
     display_picture: null,
@@ -43,6 +44,7 @@ export const useCategoriesPage = () => {
       description: '',
       type: 'food',
       isActive: true, // CHANGED: was is_displayed
+      isDisplayForSelfOrder: true, // ADDED: New field
       imageFile: null,
       imageUrl: '',
       display_picture: null,
@@ -98,12 +100,14 @@ export const useCategoriesPage = () => {
 
   // FIXED: Handle edit category with transformed field names
   const handleEditCategory = useCallback((category) => {
+    console.log('Editing category:', category); // DEBUG LOG
     setEditingCategory(category);
     setCategoryForm({
       name: category.name || '',
       description: category.description || '',
       type: category.type || 'food',
-      isActive: category.isActive !== undefined ? category.isActive : true, // CHANGED: was is_displayed
+      isActive: category.isActive !== undefined ? category.isActive : true,
+      isDisplayForSelfOrder: category.isDisplayForSelfOrder !== undefined ? category.isDisplayForSelfOrder : true, // ADDED: New field
       imageFile: null,
       imageUrl: '',
       display_picture: category.display_picture || null,
@@ -133,6 +137,7 @@ export const useCategoriesPage = () => {
           formData.append('description', categoryForm.description || '');
           formData.append('menu_category_group', getApiTypeFromComponentType(categoryForm.type));
           formData.append('is_displayed', categoryForm.isActive.toString());
+          formData.append('is_display_for_self_order', categoryForm.isDisplayForSelfOrder.toString());
           formData.append('image', categoryForm.imageFile);
           
           if (categoryForm.removeImage) {
@@ -162,6 +167,7 @@ export const useCategoriesPage = () => {
           formData.append('description', categoryForm.description || '');
           formData.append('menu_category_group', getApiTypeFromComponentType(categoryForm.type));
           formData.append('is_displayed', categoryForm.isActive.toString());
+          formData.append('is_display_for_self_order', categoryForm.isDisplayForSelfOrder.toString());
           formData.append('image', categoryForm.imageFile);
 
           const response = await fetch(`${API_CONFIG.BASE_URL}${ENDPOINTS.CATEGORIES.CREATE}`, {

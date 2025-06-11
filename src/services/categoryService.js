@@ -145,9 +145,13 @@ class CategoryService {
       // FIXED: Use the actual API field instead of name detection
       type: this.getTypeFromMenuCategoryGroup(apiCategory.menu_category_group),
       
-      // Keep legacy field names for backward compatibility (if needed)
+      // Transform to camelCase for frontend
       isActive: apiCategory.is_displayed,
+      isDisplayForSelfOrder: apiCategory.is_display_for_self_order,
       displayPicture: apiCategory.display_picture,
+      
+      // Keep legacy field names for backward compatibility (if needed)
+      is_display_for_self_order: apiCategory.is_display_for_self_order,
     };
   }
 
@@ -171,6 +175,7 @@ class CategoryService {
       name: frontendData.name,
       description: frontendData.description || null,
       is_displayed: frontendData.isActive !== undefined ? frontendData.isActive : true,
+      is_display_for_self_order: frontendData.isDisplayForSelfOrder !== undefined ? frontendData.isDisplayForSelfOrder : true,
       display_picture: frontendData.display_picture || null,
       menu_category_group: this.getApiTypeFromComponentType(frontendData.type),
     };
