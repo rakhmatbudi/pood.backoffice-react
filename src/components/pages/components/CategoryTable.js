@@ -1,6 +1,6 @@
 // src/components/pages/components/CategoryTable.js
 import React from 'react';
-import { Tag, Edit2, Eye, EyeOff, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
+import { Tag, Edit2, Eye, EyeOff, RefreshCw, ChevronUp, ChevronDown, Smartphone, X } from 'lucide-react';
 
 const CategoryTable = ({
   categories,
@@ -102,6 +102,22 @@ const CategoryTable = ({
                 </div>
               )}
             </div>
+            <div className="flex items-center">
+              {category.is_display_for_self_order ? (
+                <div className="flex items-center text-blue-600">
+                  <Smartphone className="w-4 h-4 mr-1" />
+                  <span className="text-xs">Self-Order</span>
+                </div>
+              ) : (
+                <div className="flex items-center text-gray-400">
+                  <div className="relative">
+                    <Smartphone className="w-4 h-4" />
+                    <X className="w-2 h-2 absolute -top-0.5 -right-0.5 text-red-500" />
+                  </div>
+                  <span className="text-xs ml-1">No Self-Order</span>
+                </div>
+              )}
+            </div>
           </div>
           {category.updatedAt && (
             <span className="text-xs text-gray-500">
@@ -126,6 +142,7 @@ const CategoryTable = ({
                 {renderSortableHeader('description', 'Description')}
                 {renderSortableHeader('type', 'Type')}
                 {renderSortableHeader('isActive', 'Status')}
+                {renderSortableHeader('is_display_for_self_order', 'Self-Order')}
                 <th className="text-left py-3 px-3 sm:px-6 font-semibold text-gray-800 text-xs sm:text-sm">Actions</th>
               </tr>
             </thead>
@@ -178,6 +195,24 @@ const CategoryTable = ({
                           <div className="flex items-center text-gray-500">
                             <EyeOff className="w-4 h-4 mr-1" />
                             <span className="text-xs">Hidden</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 px-3 sm:px-6">
+                      <div className="flex items-center">
+                        {category.is_display_for_self_order ? (
+                          <div className="flex items-center text-blue-600">
+                            <Smartphone className="w-4 h-4 mr-1" />
+                            <span className="text-xs">Enabled</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center text-gray-400">
+                            <div className="relative">
+                              <Smartphone className="w-4 h-4" />
+                              <X className="w-2 h-2 absolute -top-0.5 -right-0.5 text-red-500" />
+                            </div>
+                            <span className="text-xs ml-1">Disabled</span>
                           </div>
                         )}
                       </div>
@@ -236,6 +271,16 @@ const CategoryTable = ({
               }`}
             >
               Status {sortBy === 'isActive' && (sortOrder === 'asc' ? '↑' : '↓')}
+            </button>
+            <button
+              onClick={() => onSort('is_display_for_self_order')}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                sortBy === 'is_display_for_self_order' 
+                  ? 'bg-orange-100 text-orange-800' 
+                  : 'bg-white text-gray-600 border border-gray-300'
+              }`}
+            >
+              Self-Order {sortBy === 'is_display_for_self_order' && (sortOrder === 'asc' ? '↑' : '↓')}
             </button>
           </div>
         </div>
