@@ -23,11 +23,13 @@ export const useCategoriesPage = () => {
   const [editingCategory, setEditingCategory] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  
+  // FIXED: Use transformed field names in form state
   const [categoryForm, setCategoryForm] = useState({
     name: '',
     description: '',
     type: 'food',
-    is_displayed: true,
+    isActive: true, // CHANGED: was is_displayed
     imageFile: null,
     imageUrl: '',
     display_picture: null,
@@ -40,7 +42,7 @@ export const useCategoriesPage = () => {
       name: '',
       description: '',
       type: 'food',
-      is_displayed: true,
+      isActive: true, // CHANGED: was is_displayed
       imageFile: null,
       imageUrl: '',
       display_picture: null,
@@ -94,14 +96,14 @@ export const useCategoriesPage = () => {
     setShowCategoryModal(true);
   }, [resetForm]);
 
-  // Handle edit category
+  // FIXED: Handle edit category with transformed field names
   const handleEditCategory = useCallback((category) => {
     setEditingCategory(category);
     setCategoryForm({
       name: category.name || '',
       description: category.description || '',
-      type: category.type || 'food', // Ensure type has a default value
-      is_displayed: category.is_displayed !== undefined ? category.is_displayed : true,
+      type: category.type || 'food',
+      isActive: category.isActive !== undefined ? category.isActive : true, // CHANGED: was is_displayed
       imageFile: null,
       imageUrl: '',
       display_picture: category.display_picture || null,
@@ -111,7 +113,7 @@ export const useCategoriesPage = () => {
     setShowCategoryModal(true);
   }, []);
 
-  // Handle save category with file upload
+  // FIXED: Handle save category using the service
   const handleSaveCategory = useCallback(async () => {
     try {
       setSaving(true);
@@ -121,52 +123,63 @@ export const useCategoriesPage = () => {
         return;
       }
 
-      // Always use FormData to maintain consistency
-      const formData = new FormData();
-      
-      // Add text fields
-      formData.append('name', categoryForm.name);
-      formData.append('description', categoryForm.description || '');
-      formData.append('type', categoryForm.type || 'food'); // Default to 'food' if not set
-      formData.append('is_displayed', categoryForm.is_displayed.toString());
-      
-      // Handle image upload
-      if (categoryForm.hasNewImage && categoryForm.imageFile) {
-        formData.append('image', categoryForm.imageFile); // Make sure this matches your multer field name
-        console.log('Adding image file:', categoryForm.imageFile.name, categoryForm.imageFile.type);
-      }
-      
-      // Handle image removal
-      if (categoryForm.removeImage) {
-        formData.append('removeImage', 'true');
-        console.log('Requesting image removal');
-      }
-
-      // Log FormData contents for debugging
-      console.log('FormData contents:');
-      for (let [key, value] of formData.entries()) {
-        console.log(key, value instanceof File ? `File: ${value.name}` : value);
-      }
-
-      let response;
+      let result;
       if (editingCategory) {
-        response = await fetch(`${API_CONFIG.BASE_URL}${ENDPOINTS.CATEGORIES.UPDATE(editingCategory.id)}`, {
-          method: 'PUT',
-          body: formData,
-        });
+        // For updates, if there's a file upload, handle it separately
+        if (categoryForm.hasNewImage && categoryForm.imageFile) {
+          // Handle file upload with FormData
+          const formData = new FormData();
+          formData.append('name', categoryForm.name);
+          formData.append('description', categoryForm.description || '');
+          formData.append('menu_category_group', getApiTypeFromComponentType(categoryForm.type));
+          formData.append('is_displayed', categoryForm.isActive.toString());
+          formData.append('image', categoryForm.imageFile);
+          
+          if (categoryForm.removeImage) {
+            formData.append('removeImage', 'true');
+          }
+
+          const response = await fetch(`${API_CONFIG.BASE_URL}${ENDPOINTS.CATEGORIES.UPDATE(editingCategory.id)}`, {
+            method: 'PUT',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          result = { success: data.status === 'success', data: data.data, error: data.message };
+        } else {
+          // Use service for regular updates
+          result = await categoryService.updateCategory(editingCategory.id, categoryForm);
+        }
       } else {
-        response = await fetch(`${API_CONFIG.BASE_URL}${ENDPOINTS.CATEGORIES.CREATE}`, {
-          method: 'POST',
-          body: formData,
-        });
+        // For creates, if there's a file upload, handle it with FormData
+        if (categoryForm.hasNewImage && categoryForm.imageFile) {
+          const formData = new FormData();
+          formData.append('name', categoryForm.name);
+          formData.append('description', categoryForm.description || '');
+          formData.append('menu_category_group', getApiTypeFromComponentType(categoryForm.type));
+          formData.append('is_displayed', categoryForm.isActive.toString());
+          formData.append('image', categoryForm.imageFile);
+
+          const response = await fetch(`${API_CONFIG.BASE_URL}${ENDPOINTS.CATEGORIES.CREATE}`, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          result = { success: data.status === 'success', data: data.data, error: data.message };
+        } else {
+          // Use service for regular creates
+          result = await categoryService.createCategory(categoryForm);
+        }
       }
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const result = { success: data.status === 'success', data: data.data, error: data.message };
       
       if (result.success) {
         setShowCategoryModal(false);
@@ -236,7 +249,7 @@ export const useCategoriesPage = () => {
     }
   }, [sortBy, sortOrder]);
 
-  // Filter and sort categories
+  // FIXED: Filter and sort categories with correct field names
   const filteredCategories = useMemo(() => {
     let filtered = [...categories];
 
@@ -254,7 +267,7 @@ export const useCategoriesPage = () => {
       } else if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
         aValue = new Date(aValue);
         bValue = new Date(bValue);
-      } else if (sortBy === 'is_displayed') {
+      } else if (sortBy === 'isActive') { // CHANGED: was 'is_displayed'
         aValue = aValue ? 1 : 0;
         bValue = bValue ? 1 : 0;
       } else {
@@ -311,4 +324,15 @@ export const useCategoriesPage = () => {
     setDeleteConfirm,
     handleFormFieldChange,
   };
+};
+
+// ADDED: Helper function to convert component type back to API format
+const getApiTypeFromComponentType = (componentType) => {
+  const typeMap = {
+    'food': 'Food',
+    'drink': 'Drink',
+    'package': 'Bundle',
+    'other': 'Others'
+  };
+  return typeMap[componentType] || 'Others';
 };

@@ -130,18 +130,20 @@ class CategoryService {
 
   // Utility methods for category data processing
   
-  // Transform API category data to frontend format
+  // FIXED: Transform API category data to frontend format
   transformCategoryData(apiCategory) {
     return {
       id: apiCategory.id,
       name: apiCategory.name,
       description: apiCategory.description || 'No description available',
-      is_displayed: apiCategory.is_displayed, // ✅ Fixed: Use correct field name
-      display_picture: apiCategory.display_picture, // ✅ Fixed: Use correct field name
+      is_displayed: apiCategory.is_displayed,
+      display_picture: apiCategory.display_picture,
       createdAt: apiCategory.created_at,
       updatedAt: apiCategory.updated_at,
       color: this.getCategoryColor(apiCategory.id),
-      type: this.getCategoryType(apiCategory.name),
+      
+      // FIXED: Use the actual API field instead of name detection
+      type: this.getTypeFromMenuCategoryGroup(apiCategory.menu_category_group),
       
       // Keep legacy field names for backward compatibility (if needed)
       isActive: apiCategory.is_displayed,
@@ -149,14 +151,40 @@ class CategoryService {
     };
   }
 
+  // ADDED: Map API menu_category_group to component type
+  getTypeFromMenuCategoryGroup(menuCategoryGroup) {
+    if (!menuCategoryGroup) return 'other';
+    
+    const typeMap = {
+      'Food': 'food',
+      'Drink': 'drink',
+      'Bundle': 'package',
+      'Others': 'other'
+    };
+    
+    return typeMap[menuCategoryGroup] || 'other';
+  }
+
   // Transform frontend data to API format
   transformToApiFormat(frontendData) {
     return {
       name: frontendData.name,
       description: frontendData.description || null,
-      is_displayed: frontendData.is_displayed !== undefined ? frontendData.is_displayed : true, // ✅ Fixed: Use correct field name
-      display_picture: frontendData.display_picture || null, // ✅ Fixed: Use correct field name
+      is_displayed: frontendData.isActive !== undefined ? frontendData.isActive : true,
+      display_picture: frontendData.display_picture || null,
+      menu_category_group: this.getApiTypeFromComponentType(frontendData.type),
     };
+  }
+
+  // ADDED: Convert component type back to API format
+  getApiTypeFromComponentType(componentType) {
+    const typeMap = {
+      'food': 'Food',
+      'drink': 'Drink',
+      'package': 'Bundle',
+      'other': 'Others'
+    };
+    return typeMap[componentType] || 'Others';
   }
 
   // Transform multiple categories
@@ -173,7 +201,7 @@ class CategoryService {
     return colors[categoryId % colors.length];
   }
 
-  // Determine category type based on name
+  // KEPT: Determine category type based on name (fallback method)
   getCategoryType(name) {
     if (!name) return 'other';
     
@@ -186,7 +214,7 @@ class CategoryService {
     }
     
     // Food categories
-    if (['pasta', 'food', 'snacks', 'dessert', 'platter'].some(food => 
+    if (['pasta', 'food', 'snacks', 'dessert', 'platter', 'main'].some(food => 
         lowerName.includes(food.toLowerCase()))) {
       return 'food';
     }
@@ -249,7 +277,7 @@ class CategoryService {
       }
 
       const transformedCategories = this.transformCategoriesData(result.data);
-      const displayedCategories = transformedCategories.filter(cat => cat.is_displayed); // ✅ Fixed: Use correct field name
+      const displayedCategories = transformedCategories.filter(cat => cat.is_displayed);
 
       return {
         success: true,
@@ -310,8 +338,8 @@ class CategoryService {
       
       const stats = {
         total: transformedCategories.length,
-        displayed: transformedCategories.filter(cat => cat.is_displayed).length, // ✅ Fixed: Use correct field name
-        hidden: transformedCategories.filter(cat => !cat.is_displayed).length, // ✅ Fixed: Use correct field name
+        displayed: transformedCategories.filter(cat => cat.is_displayed).length,
+        hidden: transformedCategories.filter(cat => !cat.is_displayed).length,
         byType: {
           food: transformedCategories.filter(cat => cat.type === 'food').length,
           drink: transformedCategories.filter(cat => cat.type === 'drink').length,
@@ -320,7 +348,7 @@ class CategoryService {
           other: transformedCategories.filter(cat => cat.type === 'other').length,
         },
         withDescription: transformedCategories.filter(cat => cat.description && cat.description !== 'No description available').length,
-        withDisplayPicture: transformedCategories.filter(cat => cat.display_picture).length, // ✅ Fixed: Use correct field name
+        withDisplayPicture: transformedCategories.filter(cat => cat.display_picture).length,
       };
 
       return {
