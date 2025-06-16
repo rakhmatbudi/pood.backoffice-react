@@ -1,6 +1,6 @@
 // src/hooks/useNavigation.js
 import { useState } from 'react';
-import { BarChart3, Package, Tag, TrendingUp, Receipt, FileText } from 'lucide-react';
+import { BarChart3, Package, Tag, TrendingUp, Receipt, FileText, Users, Clock, UserCheck } from 'lucide-react';
 
 export const useNavigation = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
