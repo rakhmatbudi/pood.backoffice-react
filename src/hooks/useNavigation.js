@@ -19,6 +19,16 @@ export const useNavigation = () => {
         { id: 'sales-report', label: 'Sales Report', icon: TrendingUp, type: 'item' },
         { id: 'expense-report', label: 'Expense Report', icon: Receipt, type: 'item' }
       ]
+    },
+    { 
+      id: 'hr', 
+      label: 'Human Resources', 
+      icon: Users, 
+      type: 'group',
+      children: [
+        { id: 'staff', label: 'Staff', icon: UserCheck, type: 'item' },
+        { id: 'attendance', label: 'Attendance', icon: Clock, type: 'item' }
+      ]
     }
   ];
 
