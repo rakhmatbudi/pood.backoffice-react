@@ -1,17 +1,25 @@
-
-
 // src/hooks/useNavigation.js
 import { useState } from 'react';
-import { BarChart3, Package, Tag } from 'lucide-react';
+import { BarChart3, Package, Tag, TrendingUp, Receipt, FileText } from 'lucide-react';
 
 export const useNavigation = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'products', label: 'Products', icon: Package },
-    { id: 'categories', label: 'Categories', icon: Tag }
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3, type: 'item' },
+    { id: 'products', label: 'Products', icon: Package, type: 'item' },
+    { id: 'categories', label: 'Categories', icon: Tag, type: 'item' },
+    { 
+      id: 'reports', 
+      label: 'Reports', 
+      icon: FileText, 
+      type: 'group',
+      children: [
+        { id: 'sales-report', label: 'Sales Report', icon: TrendingUp, type: 'item' },
+        { id: 'expense-report', label: 'Expense Report', icon: Receipt, type: 'item' }
+      ]
+    }
   ];
 
   return {
