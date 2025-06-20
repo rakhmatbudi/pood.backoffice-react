@@ -2,10 +2,14 @@
 import React from 'react';
 import { ShoppingBag, Eye, EyeOff } from 'lucide-react';
 
-const LoginScreen = ({ loginForm, showPassword, setLoginForm, setShowPassword, handleLogin }) => {
+// Add 'loading' and 'error' to the destructured props
+const LoginScreen = ({ loginForm, showPassword, setLoginForm, setShowPassword, handleLogin, loading, error }) => {
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
-      handleLogin();
+      // Prevent login if already loading
+      if (!loading) {
+        handleLogin();
+      }
     }
   };
 
@@ -34,6 +38,7 @@ const LoginScreen = ({ loginForm, showPassword, setLoginForm, setShowPassword, h
               placeholder="Enter your username"
               required
               autoComplete="username"
+              disabled={loading} // Disable input while loading
             />
           </div>
           
@@ -51,33 +56,36 @@ const LoginScreen = ({ loginForm, showPassword, setLoginForm, setShowPassword, h
                 placeholder="Enter your password"
                 required
                 autoComplete="current-password"
+                disabled={loading} // Disable input while loading
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                 aria-label={showPassword ? "Hide password" : "Show password"}
+                disabled={loading} // Disable button while loading
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
           
+          {/* Display error message */}
+          {error && (
+            <p className="text-red-600 text-sm font-medium text-center">{error}</p>
+          )}
+
           <button
             type="button"
             onClick={handleLogin}
-            className="w-full bg-orange-500 text-white py-2 sm:py-3 rounded-lg hover:bg-orange-600 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors font-medium text-sm sm:text-base"
+            // Dynamically change button appearance based on loading state
+            className={`w-full py-2 sm:py-3 rounded-lg transition-colors font-medium text-sm sm:text-base ${
+              loading ? 'bg-orange-300 cursor-not-allowed' : 'bg-orange-500 text-white hover:bg-orange-600 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2'
+            }`}
+            disabled={loading} // Disable button while loading
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
-        </div>
-        
-        <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-          <p className="text-xs sm:text-sm text-gray-600 text-center">
-            Demo credentials:<br />
-            Username: <strong>admin</strong><br />
-            Password: <strong>password</strong>
-          </p>
         </div>
         
         {/* Additional Info */}
