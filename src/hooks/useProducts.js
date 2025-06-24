@@ -1,330 +1,358 @@
-// src/hooks/useProducts.js - Works with separate useProductForm hook
-import { useState, useEffect } from 'react';
-import { API_CONFIG, ENDPOINTS, ERROR_MESSAGES } from '../config/api';
+// src/hooks/useProducts.js
+import { useState, useEffect, useCallback } from 'react';
+import { ENDPOINTS, ERROR_MESSAGES } from '../config/api'; // API_CONFIG is used by apiClient
+import { useAuth } from './useAuth'; // Import useAuth hook
+import apiClient from '../services/apiClient'; // <-- Import the apiClient instance
 
 export const useProducts = () => {
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [error, setError] = useState(null);
+    // We only need handleLogout from useAuth to trigger global logout on 401s.
+    // getToken is no longer needed here as apiClient internally manages the token.
+    const { handleLogout } = useAuth();
 
-  // Create API URL helper
-  const createApiUrl = (endpoint) => `${API_CONFIG.BASE_URL}${endpoint}`;
+    const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true); // Loading state for products
+    const [categoriesLoading, setCategoriesLoading] = useState(true); // Loading state for categories
+    const [error, setError] = useState(null); // General error state for the hook
 
-  // Generic API request helper
-  const apiRequest = async (url, options = {}) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+    // Removed: createApiUrl is no longer needed as apiClient handles full URLs.
+    // Removed: apiRequest is no longer needed as we use apiClient directly.
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          ...options.headers,
-        },
-        signal: controller.signal,
-      });
+    /**
+     * Fetches product categories from the API.
+     */
+    const fetchCategories = useCallback(async () => {
+        setCategoriesLoading(true);
+        setError(null); // Clear any previous errors
+        try {
+            console.log('🔍 Fetching categories using apiClient from:', ENDPOINTS.MENU_CATEGORIES.LIST);
 
-      clearTimeout(timeoutId);
+            // Use apiClient.get directly
+            const result = await apiClient.get(ENDPOINTS.MENU_CATEGORIES.LIST);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+            if (!result.success) {
+                // If the error is 401 Unauthorized, trigger global logout
+                if (result.status === 401) {
+                    console.error("401 Unauthorized during categories fetch. Logging out.");
+                    handleLogout();
+                    return; // Stop further processing as logout handles redirection/state
+                }
+                throw new Error(result.error || 'Failed to fetch categories.');
+            }
 
-      return await response.json();
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if (err.name === 'AbortError') {
-        throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
-      }
-      throw err;
-    }
-  };
+            let categoriesData = [];
+            // Handle various possible response structures from the API
+            if (Array.isArray(result.data)) {
+                categoriesData = result.data;
+            } else if (result.data && Array.isArray(result.data.data)) { // Common for some APIs that wrap data in another 'data' field
+                categoriesData = result.data.data;
+            } else if (result.data && Array.isArray(result.data.results)) { // For Django REST Framework pagination
+                categoriesData = result.data.results;
+            } else {
+                console.warn('⚠️ Unexpected categories response structure:', result.data);
+                categoriesData = [];
+            }
 
-  // Fetch categories from the correct API endpoint
-  const fetchCategories = async () => {
-    try {
-      setCategoriesLoading(true);
-      
-      // Use the correct categories API endpoint
-      const url = 'https://api.pood.lol/menu-categories/';
-      console.log('🔍 Fetching categories from:', url);
-      
-      const data = await apiRequest(url);
-      console.log('📦 Raw categories response:', data);
-      
-      let categories = [];
-      
-      // Handle different possible response structures
-      if (data.status === 'success' && Array.isArray(data.data)) {
-        categories = data.data;
-      } else if (Array.isArray(data)) {
-        categories = data;
-      } else if (data.results && Array.isArray(data.results)) {
-        categories = data.results;
-      } else if (data.data && Array.isArray(data.data)) {
-        categories = data.data;
-      } else {
-        console.warn('⚠️ Unexpected categories response structure:', data);
-        categories = [];
-      }
-      
-      // Map categories to a consistent format based on the actual API response
-      categories = categories.map(category => {
-        console.log('📝 Processing category:', category);
-        return {
-          // Keep all original fields
-          ...category,
-          // Add standardized fields for the frontend
-          id: category.id,
-          name: category.name,
-          description: category.description || '',
-          // Use is_displayed as the active status
-          isActive: category.is_displayed,
-          // Keep original field names for API calls
-          is_displayed: category.is_displayed,
-          menu_category_group: category.menu_category_group,
-          sku_id: category.sku_id,
-          is_highlight: category.is_highlight,
-          is_display_for_self_order: category.is_display_for_self_order,
-          display_picture: category.display_picture,
-          created_at: category.created_at,
-          updated_at: category.updated_at
-        };
-      });
-      
-      console.log('✅ Processed categories:', categories);
-      console.log('📊 Categories count:', categories.length);
-      console.log('🎯 Active categories:', categories.filter(c => c.isActive).length);
-      
-      setCategories(categories);
-    } catch (err) {
-      console.error('❌ Error fetching categories:', err);
-      // Set empty array on error to prevent app crashes
-      setCategories([]);
-    } finally {
-      setCategoriesLoading(false);
-    }
-  };
+            // Map API response to a consistent frontend format
+            const mappedCategories = categoriesData.map(category => {
+                return {
+                    ...category,
+                    id: category.id,
+                    name: category.name,
+                    description: category.description || '',
+                    isActive: category.is_displayed, // Map backend 'is_displayed' to frontend 'isActive'
+                    // Keep original field names for potential API calls (or remove if not directly used)
+                    is_displayed: category.is_displayed,
+                    menu_category_group: category.menu_category_group,
+                    sku_id: category.sku_id,
+                    is_highlight: category.is_highlight,
+                    is_display_for_self_order: category.is_display_for_self_order,
+                    display_picture: category.display_picture,
+                    created_at: category.created_at,
+                    updated_at: category.updated_at
+                };
+            });
 
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const url = createApiUrl(ENDPOINTS.PRODUCTS.LIST);
-      const data = await apiRequest(url);
-      
-      let products = [];
-      if (data.status === 'success' && Array.isArray(data.data)) {
-        products = data.data;
-      } else if (Array.isArray(data)) {
-        products = data;
-      } else {
-        products = data.results || data.data || [];
-      }
-      
-      products = products.map(product => {
-        const mappedVariants = product.variants ? product.variants.map(variant => ({
-          ...variant,
-          isActive: variant.is_active,
-          is_active: variant.is_active,
-        })) : [];
+            console.log('✅ Processed categories:', mappedCategories);
+            console.log('📊 Categories count:', mappedCategories.length);
+            console.log('🎯 Active categories:', mappedCategories.filter(c => c.isActive).length);
 
-        return {
-          ...product,
-          isActive: product.is_active,
-          image: product.image_path || product.image || '',
-          category: product.category,
-          categoryId: product.category?.id || null,
-          categoryName: product.category?.name || '',
-          categoryData: product.category,
-          variants: mappedVariants,
-          hasVariants: mappedVariants.length > 0,
-          activeVariantsCount: mappedVariants.filter(v => v.isActive).length,
-          updatedAt: product.updated_at,
-          createdAt: product.created_at,
-        };
-      });
-      
-      console.log('✅ Fetched products:', products.length);
-      setProducts(products);
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching products:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+            setCategories(mappedCategories);
+        } catch (err) {
+            console.error('❌ Error fetching categories:', err);
+            // Only set general error state if it's not the UNAUTHORIZED error
+            if (err.message !== ERROR_MESSAGES.UNAUTHORIZED) {
+                setError(err.message);
+            }
+            setCategories([]); // Set empty array on error to prevent app crashes
+        } finally {
+            setCategoriesLoading(false);
+        }
+    }, [handleLogout]); // Dependencies for useCallback: Only handleLogout as apiClient is stable.
 
-  useEffect(() => {
-    fetchCategories();
-    fetchProducts();
-  }, []);
+    /**
+     * Fetches products from the API.
+     */
+    const fetchProducts = useCallback(async () => {
+        setLoading(true);
+        setError(null); // Clear previous errors
+        try {
+            console.log('🔍 Fetching products using apiClient from:', ENDPOINTS.PRODUCTS.LIST);
 
-  const handleDeleteProduct = async (id) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
-      try {
-        const url = createApiUrl(ENDPOINTS.PRODUCTS.DELETE(id));
-        await apiRequest(url, {
-          method: 'DELETE',
-        });
+            // Use apiClient.get directly
+            const result = await apiClient.get(ENDPOINTS.PRODUCTS.LIST);
 
-        setProducts(products.filter(p => p.id !== id));
-      } catch (err) {
-        alert(`Error deleting product: ${err.message}`);
-        console.error('Error deleting product:', err);
-      }
-    }
-  };
+            if (!result.success) {
+                if (result.status === 401) {
+                    console.error("401 Unauthorized during products fetch. Logging out.");
+                    handleLogout();
+                    return;
+                }
+                throw new Error(result.error || 'Failed to fetch products.');
+            }
 
-  // Save product function that works with useProductForm
-  const saveProduct = async (productData, isEditing = false, editingProductId = null) => {
-    try {
-      console.log('💾 Saving product with data:', productData);
+            let productsData = [];
+            // Handle various possible response structures from the API
+            if (Array.isArray(result.data)) {
+                productsData = result.data;
+            } else if (result.data && Array.isArray(result.data.data)) { // Common for some APIs that wrap data in another 'data' field
+                productsData = result.data.data;
+            } else if (result.data && Array.isArray(result.data.results)) {
+                productsData = result.data.results;
+            } else {
+                productsData = []; // Default to empty array if unexpected structure
+            }
 
-      if (isEditing && editingProductId) {
-        // Update existing product
-        const url = createApiUrl(ENDPOINTS.PRODUCTS.UPDATE(editingProductId));
-        const updatedProduct = await apiRequest(url, {
-          method: 'PUT',
-          body: JSON.stringify(productData),
-        });
+            // Map API response to a consistent frontend format
+            const mappedProducts = productsData.map(product => {
+                // Map product variants if they exist
+                const mappedVariants = product.variants ? product.variants.map(variant => ({
+                    ...variant,
+                    isActive: variant.is_active, // Map variant 'is_active' to 'isActive'
+                    is_active: variant.is_active, // Keep original for API calls
+                })) : [];
 
-        // Map response back to frontend format
-        const mappedVariants = updatedProduct.variants ? updatedProduct.variants.map(variant => ({
-          ...variant,
-          isActive: variant.is_active,
-          is_active: variant.is_active,
-        })) : [];
+                return {
+                    ...product, // Keep all original product fields
+                    isActive: product.is_active, // Map product 'is_active' to 'isActive'
+                    image: product.image_path || product.image || '', // Prefer image_path, fallback to image
+                    category: product.category, // Keep original category object
+                    categoryId: product.category?.id || null, // Extract category ID
+                    categoryName: product.category?.name || '', // Extract category name
+                    categoryData: product.category, // Keep full category object if useful
+                    variants: mappedVariants, // Mapped variants
+                    hasVariants: mappedVariants.length > 0,
+                    activeVariantsCount: mappedVariants.filter(v => v.isActive).length,
+                    updatedAt: product.updated_at,
+                    createdAt: product.created_at,
+                };
+            });
 
-        const mappedProduct = {
-          ...updatedProduct,
-          isActive: updatedProduct.is_active,
-          image: updatedProduct.image_path || '',
-          category: updatedProduct.category,
-          categoryId: updatedProduct.category?.id || null,
-          categoryName: updatedProduct.category?.name || '',
-          categoryData: updatedProduct.category,
-          variants: mappedVariants,
-          hasVariants: mappedVariants.length > 0,
-          activeVariantsCount: mappedVariants.filter(v => v.isActive).length,
-          updatedAt: updatedProduct.updated_at,
-          createdAt: updatedProduct.created_at,
-        };
+            console.log('✅ Fetched products:', mappedProducts.length);
+            setProducts(mappedProducts);
+        } catch (err) {
+            console.error('❌ Error fetching products:', err);
+            if (err.message !== ERROR_MESSAGES.UNAUTHORIZED) {
+                setError(err.message);
+            }
+            setProducts([]); // Set empty array on error
+        } finally {
+            setLoading(false);
+        }
+    }, [handleLogout]); // Dependencies for useCallback: Only handleLogout as apiClient is stable.
 
-        setProducts(products.map(p => 
-          p.id === editingProductId ? mappedProduct : p
-        ));
-      } else {
-        // Create new product
-        const url = createApiUrl(ENDPOINTS.PRODUCTS.CREATE);
-        const newProduct = await apiRequest(url, {
-          method: 'POST',
-          body: JSON.stringify(productData),
-        });
+    /**
+     * Effect hook to fetch products and categories on component mount.
+     */
+    useEffect(() => {
+        fetchCategories(); // Fetch categories when hook mounts
+        fetchProducts(); // Fetch products when hook mounts
+    }, [fetchCategories, fetchProducts]); // Dependencies: ensure these functions are stable
 
-        // Map response back to frontend format
-        const mappedVariants = newProduct.variants ? newProduct.variants.map(variant => ({
-          ...variant,
-          isActive: variant.is_active,
-          is_active: variant.is_active,
-        })) : [];
+    /**
+     * Handles the deletion of a product.
+     * @param {string} id - The ID of the product to delete.
+     * @returns {object} - An object indicating success or failure.
+     */
+    const handleDeleteProduct = useCallback(async (id) => {
+        // Removed window.confirm. Caller (component) should handle confirmation UI.
+        try {
+            // Use apiClient.delete directly
+            const result = await apiClient.delete(ENDPOINTS.PRODUCTS.DELETE(id));
 
-        const mappedProduct = {
-          ...newProduct,
-          isActive: newProduct.is_active,
-          image: newProduct.image_path || '',
-          category: newProduct.category,
-          categoryId: newProduct.category?.id || null,
-          categoryName: newProduct.category?.name || '',
-          categoryData: newProduct.category,
-          variants: mappedVariants,
-          hasVariants: mappedVariants.length > 0,
-          activeVariantsCount: mappedVariants.filter(v => v.isActive).length,
-          updatedAt: newProduct.updated_at,
-          createdAt: newProduct.created_at,
-        };
+            if (!result.success) {
+                if (result.status === 401) { handleLogout(); return { success: false, error: ERROR_MESSAGES.UNAUTHORIZED }; }
+                throw new Error(result.error || 'Failed to delete product.');
+            }
 
-        setProducts([...products, mappedProduct]);
-      }
-      
-      return { success: true };
-    } catch (err) {
-      console.error('Error saving product:', err);
-      return { success: false, error: err.message };
-    }
-  };
+            setProducts(prevProducts => prevProducts.filter(p => p.id !== id));
+            // Removed alert(). Caller (component) should provide user feedback.
+            return { success: true, message: 'Product deleted successfully!' };
+        } catch (err) {
+            console.error('Error deleting product:', err);
+            return { success: false, error: err.message };
+        }
+    }, [handleLogout]); // Dependencies for useCallback: Only handleLogout as apiClient is stable.
 
-  const toggleProductStatus = async (id) => {
-    try {
-      const product = products.find(p => p.id === id);
-      const url = createApiUrl(ENDPOINTS.PRODUCTS.UPDATE(id));
-      
-      const updatedData = {
-        name: product.name,
-        description: product.description,
-        price: parseFloat(product.price),
-        is_active: !product.isActive,
-        category: product.categoryId || product.category?.id,
-        image_path: product.image || '',
-        stock: product.stock || 0,
-      };
+    /**
+     * Saves a product (creates new or updates existing).
+     * @param {object | FormData} productData - The product data to save. Can be an object or FormData.
+     * @param {boolean} isEditing - True if updating an existing product.
+     * @param {string} editingProductId - The ID of the product being edited (if isEditing is true).
+     * @returns {object} - An object indicating success or failure.
+     */
+    const saveProduct = useCallback(async (productData, isEditing = false, editingProductId = null) => {
+        try {
+            console.log('💾 Saving product with data:', productData);
+            let result; // To hold the API response data
 
-      const updatedProduct = await apiRequest(url, {
-        method: 'PUT',
-        body: JSON.stringify(updatedData),
-      });
+            if (isEditing && editingProductId) {
+                // Update existing product using apiClient.put
+                result = await apiClient.put(ENDPOINTS.PRODUCTS.UPDATE(editingProductId), productData);
+            } else {
+                // Create new product using apiClient.post
+                result = await apiClient.post(ENDPOINTS.PRODUCTS.CREATE, productData);
+            }
 
-      const mappedVariants = updatedProduct.variants ? updatedProduct.variants.map(variant => ({
-        ...variant,
-        isActive: variant.is_active,
-        is_active: variant.is_active,
-      })) : [];
+            if (!result.success) {
+                if (result.status === 401) { handleLogout(); return { success: false, error: ERROR_MESSAGES.UNAUTHORIZED }; }
+                // Backend might return validation errors in result.data.errors or similar
+                const errorMessage = result.error || (result.data?.errors ? Object.values(result.data.errors).flat().join(', ') : 'Failed to save product.');
+                throw new Error(errorMessage);
+            }
 
-      const mappedProduct = {
-        ...updatedProduct,
-        isActive: updatedProduct.is_active,
-        image: updatedProduct.image_path || updatedProduct.image || '',
-        category: updatedProduct.category,
-        categoryId: updatedProduct.category?.id || null,
-        categoryName: updatedProduct.category?.name || '',
-        categoryData: updatedProduct.category,
-        variants: mappedVariants,
-        hasVariants: mappedVariants.length > 0,
-        activeVariantsCount: mappedVariants.filter(v => v.isActive).length,
-        updatedAt: updatedProduct.updated_at,
-        createdAt: updatedProduct.created_at,
-      };
+            // Map the API response back to the frontend's consistent format
+            const mapApiResponseToProduct = (apiProduct) => {
+                const mappedVariants = apiProduct.variants ? apiProduct.variants.map(variant => ({
+                    ...variant,
+                    isActive: variant.is_active,
+                    is_active: variant.is_active,
+                })) : [];
 
-      setProducts(products.map(p => 
-        p.id === id ? mappedProduct : p
-      ));
-    } catch (err) {
-      alert(`Error updating product status: ${err.message}`);
-      console.error('Error updating product status:', err);
-    }
-  };
+                return {
+                    ...apiProduct,
+                    isActive: apiProduct.is_active,
+                    image: apiProduct.image_path || apiProduct.image || '',
+                    category: apiProduct.category,
+                    categoryId: apiProduct.category?.id || null,
+                    categoryName: apiProduct.category?.name || '',
+                    categoryData: apiProduct.category,
+                    variants: mappedVariants,
+                    hasVariants: mappedVariants.length > 0,
+                    activeVariantsCount: mappedVariants.filter(v => v.isActive).length,
+                    updatedAt: apiProduct.updated_at,
+                    createdAt: apiProduct.created_at,
+                };
+            };
 
-  return {
-    // Product data
-    products,
-    categories,
-    loading,
-    categoriesLoading,
-    error,
-    
-    // API functions
-    fetchProducts,
-    fetchCategories,
-    handleDeleteProduct,
-    saveProduct,
-    toggleProductStatus,
-    
-    // API helpers for useProductForm
-    apiRequest,
-    createApiUrl,
-  };
+            const mappedProduct = mapApiResponseToProduct(result.data);
+
+            setProducts(prevProducts => {
+                if (isEditing) {
+                    return prevProducts.map(p =>
+                        p.id === editingProductId ? mappedProduct : p
+                    );
+                } else {
+                    return [...prevProducts, mappedProduct];
+                }
+            });
+
+            return { success: true, message: 'Product saved successfully!' };
+        } catch (err) {
+            console.error('Error saving product:', err);
+            return { success: false, error: err.message };
+        }
+    }, [handleLogout]); // Dependencies for useCallback: Only handleLogout as apiClient is stable.
+
+    /**
+     * Toggles the active status of a product.
+     * @param {string} id - The ID of the product to toggle.
+     * @returns {object} - An object indicating success or failure.
+     */
+    const toggleProductStatus = useCallback(async (id) => {
+        try {
+            // Find the product to get its current state and other necessary fields for PUT
+            const product = products.find(p => p.id === id);
+            if (!product) {
+                throw new Error("Product not found for status toggle.");
+            }
+
+            // Create a payload with the new 'is_active' status and other required fields for PUT.
+            // Ensure dataToSend is a plain object for JSON.stringify by apiClient OR a FormData object.
+            // Since this is likely a PATCH operation (partial update) but your backend might expect PUT,
+            // we send all original fields plus the changed 'is_active'.
+            const dataToSend = {
+                name: product.name,
+                description: product.description,
+                price: parseFloat(product.price),
+                is_active: !product.isActive, // Toggle status
+                category: product.categoryId || product.category?.id, // Send category ID
+                image_path: product.image || '', // Send image path
+                stock: product.stock || 0, // Send stock
+                // Add any other required fields for a PUT request
+                sku_id: product.sku_id || null,
+                is_featured: product.is_featured || false,
+                is_display_for_self_order: product.is_display_for_self_order || false,
+                is_highlight: product.is_highlight || false,
+                menu_category_group: product.menu_category_group || null
+            };
+
+            // Use apiClient.put directly
+            const result = await apiClient.put(ENDPOINTS.PRODUCTS.UPDATE(id), dataToSend);
+
+            if (!result.success) {
+                if (result.status === 401) { handleLogout(); return { success: false, error: ERROR_MESSAGES.UNAUTHORIZED }; }
+                throw new Error(result.error || 'Failed to update product status');
+            }
+
+            const mapApiResponseToProduct = (apiProduct) => {
+                const mappedVariants = apiProduct.variants ? apiProduct.variants.map(variant => ({
+                    ...variant,
+                    isActive: variant.is_active,
+                    is_active: variant.is_active,
+                })) : [];
+
+                return {
+                    ...apiProduct,
+                    isActive: apiProduct.is_active,
+                    image: apiProduct.image_path || apiProduct.image || '',
+                    category: apiProduct.category,
+                    categoryId: apiProduct.category?.id || null,
+                    categoryName: apiProduct.category?.name || '',
+                    categoryData: apiProduct.category,
+                    variants: mappedVariants,
+                    hasVariants: mappedVariants.length > 0,
+                    activeVariantsCount: mappedVariants.filter(v => v.isActive).length,
+                    updatedAt: apiProduct.updated_at,
+                    createdAt: apiProduct.created_at,
+                };
+            };
+            const mappedProduct = mapApiResponseToProduct(result.data);
+
+            setProducts(prevProducts => prevProducts.map(p =>
+                p.id === id ? mappedProduct : p
+            ));
+            // Removed alert(). Caller (component) should provide user feedback.
+            return { success: true, message: 'Product status updated successfully!' };
+        } catch (err) {
+            console.error('Error updating product status:', err);
+            return { success: false, error: err.message };
+        }
+    }, [products, handleLogout]); // `products` is required here to find the product object
+
+    // Return all states and functions that components using this hook might need
+    return {
+        products,
+        categories,
+        loading, // Loading state for products
+        categoriesLoading, // Loading state for categories
+        error, // General error state
+
+        // API functions
+        fetchProducts,
+        fetchCategories, // Expose fetchCategories as well
+        handleDeleteProduct,
+        saveProduct,
+        toggleProductStatus,
+    };
 };

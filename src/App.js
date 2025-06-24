@@ -3,7 +3,7 @@ import React from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useNavigation } from './hooks/useNavigation';
 import LoginScreen from './components/LoginScreen';
-import DashboardLayout from './components/DashboardLayout'; // Assuming this component exists
+import DashboardLayout from './components/DashboardLayout';
 
 const App = () => {
   // Destructure loading and error from useAuth
@@ -15,13 +15,15 @@ const App = () => {
     handleLogout,
     setLoginForm,
     setShowPassword,
-    loading, // <--- New: Loading state
-    error,   // <--- New: Error message
-    currentUser, // <--- New: Current logged-in user data
-    API_BASE_URL // <--- New: Base URL for API calls
+    loading,
+    error,
+    currentUser,
+    API_BASE_URL
   } = useAuth();
 
-  const { currentPage, sidebarOpen, setCurrentPage, setSidebarOpen } = useNavigation();
+  // --- FIX IS HERE: Add menuItems to the destructuring ---
+  const { currentPage, sidebarOpen, setCurrentPage, setSidebarOpen, menuItems } = useNavigation();
+  // --------------------------------------------------------
 
   if (!isAuthenticated) {
     return (
@@ -31,8 +33,8 @@ const App = () => {
         setLoginForm={setLoginForm}
         setShowPassword={setShowPassword}
         handleLogin={handleLogin}
-        loading={loading} // <--- Pass loading state to LoginScreen
-        error={error}   // <--- Pass error message to LoginScreen
+        loading={loading}
+        error={error}
       />
     );
   }
@@ -44,8 +46,9 @@ const App = () => {
       setCurrentPage={setCurrentPage}
       setSidebarOpen={setSidebarOpen}
       handleLogout={handleLogout}
-      currentUser={currentUser} // Pass current user data to DashboardLayout
-      API_BASE_URL={API_BASE_URL} // Pass API base URL if needed by sub-components
+      currentUser={currentUser}
+      API_BASE_URL={API_BASE_URL}
+      menuItems={menuItems} // Now 'menuItems' is correctly defined from useNavigation()
     />
   );
 };

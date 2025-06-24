@@ -10,6 +10,7 @@ export const useNavigation = () => {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, type: 'item' },
     { id: 'products', label: 'Products', icon: Package, type: 'item' },
     { id: 'categories', label: 'Categories', icon: Tag, type: 'item' },
+    { id: 'transactions', label: 'Transactions', icon: Receipt, type: 'item' },
     { 
       id: 'reports', 
       label: 'Reports', 

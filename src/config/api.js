@@ -27,6 +27,10 @@ const ENDPOINTS = {
     SEARCH: (term) => `/menu-items/?search=${term}`,
     ACTIVE: '/menu-items/?is_active=true',
   },
+
+  TRANSACTIONS: { // <-- Add this
+    LIST: '/payments/grouped/sessions/details',
+  },
   
   // Variant endpoints (if needed separately)
   VARIANTS: {

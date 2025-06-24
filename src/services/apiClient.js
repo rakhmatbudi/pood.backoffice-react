@@ -7,12 +7,16 @@ class APIClient {
     this.timeout = API_CONFIG.TIMEOUT;
     this.retryAttempts = API_CONFIG.RETRY_ATTEMPTS;
     this.retryDelay = API_CONFIG.RETRY_DELAY;
-    this.authToken = null;
+    this.authToken = null; // Will be set by useAuth
   }
 
   // Helper method to create full URL
   createURL(endpoint) {
-    return `${this.baseURL}${endpoint}`;
+    // Ensure the endpoint starts with '/' if baseURL doesn't end with it, and vice versa.
+    // This makes sure we don't end up with '//' or missing '/'.
+    const cleanedBaseURL = this.baseURL.endsWith('/') ? this.baseURL.slice(0, -1) : this.baseURL;
+    const cleanedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    return `${cleanedBaseURL}${cleanedEndpoint}`;
   }
 
   // Helper method to handle delays for retry
@@ -24,52 +28,81 @@ class APIClient {
   async request(endpoint, options = {}) {
     const url = this.createURL(endpoint);
     
-    // Prepare headers with auth token if available
-    const headers = {
-      'Content-Type': 'application/json',
+    // Prepare headers. Default to application/json only if a JSON body is expected.
+    // If a FormData body is provided, the browser will automatically set the correct
+    // 'Content-Type: multipart/form-data' header with the boundary.
+    let headers = {
+      'Accept': 'application/json', // Always accept JSON responses
       ...options.headers,
     };
 
-    // Add auth token if available
+    // Determine the body and Content-Type
+    let bodyToSend = options.body;
+    if (bodyToSend instanceof FormData) {
+      // If it's FormData, let the browser handle Content-Type.
+      // Ensure 'Content-Type' is not explicitly set in headers for FormData.
+      delete headers['Content-Type'];
+    } else if (typeof bodyToSend === 'object' && bodyToSend !== null) {
+      // If it's a plain object, stringify it and set Content-Type to JSON.
+      bodyToSend = JSON.stringify(bodyToSend);
+      headers['Content-Type'] = 'application/json';
+    } else {
+      // For other body types (string, undefined), don't force Content-Type unless explicitly set.
+      // If no body, 'Content-Type' might not be needed.
+      if (!headers['Content-Type']) {
+         delete headers['Content-Type']; // Remove if not explicitly set and not a JSON/FormData body
+      }
+    }
+
+
+    // Add auth token if available (this.authToken is set by useAuth)
     if (this.authToken) {
       headers['Authorization'] = `Bearer ${this.authToken}`;
     }
 
-    const config = {
-      timeout: this.timeout,
+    // Consolidated fetch options
+    const fetchOptions = {
+      method: options.method || 'GET', // Default to GET
       headers,
-      ...options,
+      body: bodyToSend, // Use the prepared body
+      // signal will be added by the AbortController
     };
 
     let lastError;
     
     for (let attempt = 1; attempt <= this.retryAttempts; attempt++) {
       try {
-        // Create AbortController for timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
         
         const response = await fetch(url, {
-          ...config,
-          signal: controller.signal,
+          ...fetchOptions, // Use the consolidated options
+          signal: controller.signal, // Add signal for timeout
         });
         
         clearTimeout(timeoutId);
 
-        // Handle different response types
         if (!response.ok) {
           const errorMessage = await this.getErrorMessage(response);
+          // Special handling for 401 Unauthorized errors
+          if (response.status === 401) {
+            console.error("401 Unauthorized: Token invalid or expired. Please re-authenticate.");
+            // Do NOT call clearAuthToken/handleLogout directly here.
+            // Let the higher-level hooks (like useAuth, useCategories) decide
+            // how to handle authentication errors (e.g., redirect to login).
+            // This client should throw the error, and the hook should catch and act.
+            throw new Error(`Unauthorized: ${errorMessage}`, { cause: 'unauthorized' }); // Add a cause for easier identification
+          }
           throw new Error(`HTTP ${response.status}: ${errorMessage}`);
         }
 
-        // Try to parse JSON, fallback to text if needed
         let data;
         const contentType = response.headers.get('content-type');
         
         if (contentType && contentType.includes('application/json')) {
           data = await response.json();
         } else {
-          data = await response.text();
+          data = await response.text(); // Fallback to text for non-JSON responses
         }
 
         return {
@@ -81,22 +114,29 @@ class APIClient {
 
       } catch (error) {
         lastError = error;
-        console.warn(`API request attempt ${attempt} failed:`, error.message);
+        console.warn(`API request attempt ${attempt} failed to ${url}:`, error.message);
         
-        // Don't retry on client errors (4xx) except 408 (timeout), 429 (rate limit), and network errors
+        // Don't retry on specific unrecoverable errors (e.g., explicit unauthorized error)
+        if (error.cause === 'unauthorized') { // Check the custom cause for immediate break
+            break;
+        }
+        // Don't retry on client errors (4xx) except 408 (timeout) and 429 (rate limit)
+        if (error.message.includes('HTTP 4') && 
+            !error.message.includes('HTTP 408') && 
+            !error.message.includes('HTTP 429')) {
+          break; // Break if it's a non-retriable 4xx error
+        }
         if (error.name === 'AbortError') {
           console.warn('Request timed out');
-        } else if (error.message.includes('HTTP 4') && 
-                   !error.message.includes('HTTP 408') && 
-                   !error.message.includes('HTTP 429')) {
-          // Don't retry client errors except timeout and rate limit
-          break;
         }
         
         // Wait before retrying (except on last attempt)
         if (attempt < this.retryAttempts) {
           const delay = this.retryDelay * attempt; // Exponential backoff
           await this.delay(delay);
+        } else {
+            // Last attempt failed, no more retries.
+            break;
         }
       }
     }
@@ -105,6 +145,7 @@ class APIClient {
       success: false,
       error: lastError?.message || 'Unknown error occurred',
       data: null,
+      status: lastError?.message?.includes('HTTP') ? parseInt(lastError.message.split(' ')[1]) : null, // Attempt to extract status for 401
     };
   }
 
@@ -114,7 +155,8 @@ class APIClient {
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         const errorData = await response.json();
-        return errorData.message || errorData.error || response.statusText;
+        // Look for common error message fields from various backends
+        return errorData.message || errorData.error || errorData.detail || response.statusText;
       } else {
         const textError = await response.text();
         return textError || response.statusText;
@@ -136,49 +178,57 @@ class APIClient {
           url.searchParams.append(key, params[key]);
         }
       });
-      // Extract just the path and search from the URL
-      finalEndpoint = url.pathname.replace(this.baseURL.replace(/https?:\/\/[^\/]+/, ''), '') + url.search;
+      // Correctly form the finalEndpoint with search params.
+      // This is crucial to send the full URL with query parameters to the `request` method.
+      // `createURL` handles the base, so we just append search params.
+      finalEndpoint = `${endpoint}?${url.searchParams.toString()}`;
     }
 
     return this.request(finalEndpoint, {
       method: 'GET',
+      // No body for GET requests
     });
   }
 
   // POST request
-  async post(endpoint, data = {}) {
+  async post(endpoint, data = {}, options = {}) {
     return this.request(endpoint, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data, // Pass data as is, `request` method will handle JSON.stringify or FormData
+      ...options,
     });
   }
 
   // PUT request
-  async put(endpoint, data = {}) {
+  async put(endpoint, data = {}, options = {}) {
     return this.request(endpoint, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: data, // Pass data as is
+      ...options,
     });
   }
 
   // PATCH request
-  async patch(endpoint, data = {}) {
+  async patch(endpoint, data = {}, options = {}) {
     return this.request(endpoint, {
       method: 'PATCH',
-      body: JSON.stringify(data),
+      body: data, // Pass data as is
+      ...options,
     });
   }
 
   // DELETE request
-  async delete(endpoint) {
+  async delete(endpoint, options = {}) {
     return this.request(endpoint, {
       method: 'DELETE',
+      ...options,
     });
   }
 
   // Authentication methods
   setAuthToken(token) {
     this.authToken = token;
+    console.log('APIClient: Auth token set.');
   }
 
   getAuthToken() {
@@ -187,11 +237,13 @@ class APIClient {
 
   clearAuthToken() {
     this.authToken = null;
+    console.log('APIClient: Auth token cleared.');
   }
 
   // Health check method
   async healthCheck() {
     try {
+      // Use a known health check endpoint. If '/health' is the exact endpoint:
       const response = await this.get('/health');
       return response.success;
     } catch (error) {
@@ -205,8 +257,8 @@ class APIClient {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for ping
       
-      const response = await fetch(this.baseURL, {
-        method: 'HEAD',
+      const response = await fetch(this.baseURL, { // Ping the base URL
+        method: 'HEAD', // HEAD request is efficient for connectivity check
         signal: controller.signal,
       });
       

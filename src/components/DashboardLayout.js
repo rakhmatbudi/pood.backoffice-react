@@ -1,36 +1,37 @@
 // src/components/DashboardLayout.js
-import React, { useState, useEffect } from 'react'; // Import useState and useEffect
+import React, { useState, useEffect } from 'react';
 import { Menu } from 'lucide-react';
 import Sidebar from './Sidebar';
-import DashboardPage from './pages/DashboardPage';
+import DashboardPage from './pages/DashboardPage'; // Assuming these are in 'pages' directory
 import ProductsPage from './pages/ProductsPage';
 import CategoriesPage from './pages/CategoriesPage';
 import { useCategories } from '../hooks/useCategories';
 import { useProducts } from '../hooks/useProducts';
+import { useTransactions } from '../hooks/useTransactions';
+import TransactionsPage from './pages/TransactionsPage';
 
-const DashboardLayout = ({ currentPage, sidebarOpen, setCurrentPage, setSidebarOpen, handleLogout }) => {
+// Accept menuItems as a prop here
+const DashboardLayout = ({ currentPage, sidebarOpen, setCurrentPage, setSidebarOpen, handleLogout, currentUser, API_BASE_URL, menuItems }) => { // <--- Add menuItems here
     const categoryHooks = useCategories();
     const productHooks = useProducts();
+    const transactionHooks = useTransactions();
 
-    // State to hold the tenant name
-    const [tenantName, setTenantName] = useState('Loading...'); // Default loading state
+    const [tenantName, setTenantName] = useState('Loading...');
 
     useEffect(() => {
-        // Retrieve tenant info from localStorage
         const storedTenantInfo = localStorage.getItem('tenantInfo');
         if (storedTenantInfo) {
             try {
                 const tenant = JSON.parse(storedTenantInfo);
-                // Set the tenant name from the parsed object
                 setTenantName(tenant.name || 'Unknown Tenant');
             } catch (e) {
                 console.error("Failed to parse tenant info from localStorage:", e);
                 setTenantName('Error loading tenant name');
             }
         } else {
-            setTenantName('No Tenant Found'); // Handle case where no tenant info is stored
+            setTenantName('No Tenant Found');
         }
-    }, []); // Empty dependency array means this effect runs once on mount
+    }, []);
 
     const renderPage = () => {
         switch (currentPage) {
@@ -40,6 +41,8 @@ const DashboardLayout = ({ currentPage, sidebarOpen, setCurrentPage, setSidebarO
                 return <ProductsPage {...productHooks} categories={categoryHooks.categories} />;
             case 'categories':
                 return <CategoriesPage {...categoryHooks} products={productHooks.products} />;
+            case 'transactions':
+                return <TransactionsPage {...transactionHooks} transactions={transactionHooks.transactions} />;
             default:
                 return <DashboardPage categories={categoryHooks.categories} products={productHooks.products} setCurrentPage={setCurrentPage} />;
         }
@@ -53,6 +56,7 @@ const DashboardLayout = ({ currentPage, sidebarOpen, setCurrentPage, setSidebarO
                 setCurrentPage={setCurrentPage}
                 setSidebarOpen={setSidebarOpen}
                 handleLogout={handleLogout}
+                menuItems={menuItems} // <--- IMPORTANT: Pass menuItems to Sidebar
             />
 
             {/* Main Content */}
@@ -67,7 +71,7 @@ const DashboardLayout = ({ currentPage, sidebarOpen, setCurrentPage, setSidebarO
                             <Menu size={24} />
                         </button>
                         <h2 className="text-xl font-semibold text-gray-800 capitalize">
-                            Dashboard {tenantName ? `| ${tenantName}` : ''} {/* Display Tenant Name here */}
+                            {currentPage.replace('-', ' ')} {tenantName ? `| ${tenantName}` : ''}
                         </h2>
                     </div>
                 </header>

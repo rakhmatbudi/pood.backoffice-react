@@ -1,10 +1,13 @@
 // src/components/Sidebar.js
 import React, { useState } from 'react';
 import { ShoppingBag, X, LogOut, ChevronDown, ChevronRight } from 'lucide-react';
-import { useNavigation } from '../hooks/useNavigation';
+// Make sure this import is GONE: // import { useNavigation } from '../hooks/useNavigation';
 
-const Sidebar = ({ handleLogout }) => {
-  const { currentPage, sidebarOpen, setCurrentPage, setSidebarOpen, menuItems } = useNavigation();
+// Add 'menuItems' to the destructured props here:
+const Sidebar = ({ handleLogout, currentPage, sidebarOpen, setCurrentPage, setSidebarOpen, menuItems }) => {
+  // REMOVE THIS LINE if it's still there:
+  // const { currentPage, sidebarOpen, setCurrentPage, setSidebarOpen, menuItems } = useNavigation();
+
   const [expandedGroups, setExpandedGroups] = useState({ reports: true }); // Reports expanded by default
 
   const toggleGroup = (groupId) => {
@@ -121,7 +124,7 @@ const Sidebar = ({ handleLogout }) => {
         </div>
         
         <nav className="mt-6 flex-1 overflow-y-auto">
-          {menuItems.map(renderMenuItem)}
+          {menuItems.map(renderMenuItem)} {/* This is line 49, where menuItems was undefined */}
         </nav>
         
         <div className="absolute bottom-0 left-0 right-0 p-6 border-t">

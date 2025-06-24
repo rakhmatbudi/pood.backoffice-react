@@ -1,103 +1,111 @@
 // src/hooks/useAuth.js
-import { useState, useEffect } from 'react';
-import axios from 'axios'; // Import axios for API calls
+import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import apiClient from '../services/apiClient'; // <-- Import the apiClient instance
 
 // Define your backend API base URL directly
-// For a production app, it's still recommended to use environment variables
-const API_LOGIN_URL = 'https://api.pood.lol/users/login'; // Direct URL for the login endpoint
+const API_LOGIN_URL = 'https://api.pood.lol/users/login';
+const TOKEN_STORAGE_KEY = 'token';
+const USER_STORAGE_KEY = 'user';
+const TENANT_STORAGE_KEY = 'tenantInfo';
+
 
 export const useAuth = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [loginForm, setLoginForm] = useState({ username: '', password: '' }); // Using 'username' in form for email input
+    const [loginForm, setLoginForm] = useState({ username: '', password: '' });
     const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false); // State for loading indicator
-    const [error, setError] = useState('');     // State for error messages
-    const [currentUser, setCurrentUser] = useState(null); // Stores logged-in user data
-    // Assuming API_BASE_URL might be needed elsewhere, derive it or define it separately
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [currentUser, setCurrentUser] = useState(null);
     const API_BASE_URL = 'https://api.pood.lol'; // General base for other API calls if needed
 
+    // Helper function to get the token from localStorage
+    const getToken = useCallback(() => {
+        return localStorage.getItem(TOKEN_STORAGE_KEY);
+    }, []);
+
     // Effect to check for an existing token and user data on component mount
+    // And to set the token on apiClient immediately
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = getToken();
         if (token) {
-            // In a production app, you would ideally validate this token with your backend
-            // (e.g., by calling a /users/me endpoint that requires the token)
+            // Set the token on the apiClient instance immediately
+            apiClient.setAuthToken(token);
             setIsAuthenticated(true);
             try {
-                const storedUser = JSON.parse(localStorage.getItem('user'));
+                const storedUser = JSON.parse(localStorage.getItem(USER_STORAGE_KEY));
                 setCurrentUser(storedUser);
             } catch (e) {
                 console.error("Failed to parse stored user data from localStorage:", e);
-                // Clear corrupted data and reset auth status
-                localStorage.removeItem('user');
-                localStorage.removeItem('token');
-                localStorage.removeItem('tenantInfo');
+                localStorage.removeItem(USER_STORAGE_KEY);
+                localStorage.removeItem(TOKEN_STORAGE_KEY);
+                localStorage.removeItem(TENANT_STORAGE_KEY);
                 setIsAuthenticated(false);
+                apiClient.clearAuthToken(); // Also clear from apiClient if local storage is corrupt
             }
         }
-    }, []);
+    }, [getToken]); // getToken is stable due to useCallback
 
-    const handleLogin = async () => {
-        setLoading(true); // Start loading
-        setError('');     // Clear any previous errors
+    const handleLogin = useCallback(async () => {
+        setLoading(true);
+        setError('');
 
         try {
-            // Make the API call to your specific login endpoint
-            // The API expects 'email' and 'password' in the body
             const response = await axios.post(API_LOGIN_URL, {
-                email: loginForm.username, // Map frontend 'username' input to backend 'email'
+                email: loginForm.username,
                 password: loginForm.password,
             });
 
-            // Assuming your backend sends back 'token', 'user' details, and 'tenant' info
-            // Access the 'data' property of the response, then 'data' again if nested
-            const { token, user, tenant } = response.data.data; 
+            const { token, user, tenant } = response.data.data;
 
-            // Store the token and user information in localStorage
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(user));
-            localStorage.setItem('tenantInfo', JSON.stringify(tenant)); // Store tenant info if applicable
+            localStorage.setItem(TOKEN_STORAGE_KEY, token);
+            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+            localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(tenant));
 
-            setIsAuthenticated(true);         // Set authentication status to true
-            setCurrentUser(user);             // Store the user data
-            setLoginForm({ username: '', password: '' }); // Clear the login form
-            
+            // Set the token on the apiClient instance here after successful login
+            apiClient.setAuthToken(token);
+
+            setIsAuthenticated(true);
+            setCurrentUser(user);
+            setLoginForm({ username: '', password: '' });
+
         } catch (err) {
             console.error('Login error:', err);
-            // Extract a user-friendly error message from the API response
             if (err.response && err.response.data && err.response.data.message) {
-                setError(err.response.data.message); // Use the specific error message from your API
+                setError(err.response.data.message);
             } else {
                 setError('Login failed. Please check your credentials and try again.');
             }
-            setIsAuthenticated(false); // Ensure authentication status is false on error
-            setCurrentUser(null);      // Clear current user data on error
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+            apiClient.clearAuthToken(); // Clear token from apiClient on login failure
         } finally {
-            setLoading(false); // Stop loading, regardless of success or failure
+            setLoading(false);
         }
-    };
+    }, [loginForm.username, loginForm.password]);
 
-    const handleLogout = () => {
-        // Clear all stored authentication data
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('tenantInfo'); // Clear tenant info
+    const handleLogout = useCallback(() => {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        localStorage.removeItem(USER_STORAGE_KEY);
+        localStorage.removeItem(TENANT_STORAGE_KEY);
         setIsAuthenticated(false);
         setCurrentUser(null);
-        setError(''); // Clear any pending error messages on logout
-    };
+        setError('');
+        apiClient.clearAuthToken(); // <-- Clear the token from the apiClient instance
+    }, []);
 
     return {
         isAuthenticated,
         loginForm,
         showPassword,
-        loading,      // Return loading state
-        error,        // Return error message
-        currentUser,  // Return current user data
+        loading,
+        error,
+        currentUser,
         setLoginForm,
         setShowPassword,
         handleLogin,
         handleLogout,
-        API_BASE_URL // General API base, if other parts of the app need it
+        API_BASE_URL,
+        getToken
     };
 };
